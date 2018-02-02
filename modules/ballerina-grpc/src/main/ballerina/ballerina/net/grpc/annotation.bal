@@ -7,5 +7,5 @@ package ballerina.net.grpc;
 public annotation protobuf attach field {
     string fieldType;
     int index;
-    int name;
+    string name;
 }

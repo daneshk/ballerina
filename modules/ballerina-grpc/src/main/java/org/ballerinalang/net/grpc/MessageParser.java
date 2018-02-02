@@ -16,7 +16,8 @@ public class MessageParser extends com.google.protobuf.AbstractParser<Message> {
     }
 
     @Override
-    public Message parsePartialFrom(CodedInputStream input, ExtensionRegistryLite extensionRegistry) throws InvalidProtocolBufferException {
+    public Message parsePartialFrom(CodedInputStream input, ExtensionRegistryLite extensionRegistry) throws
+            InvalidProtocolBufferException {
         return new Message(messageName, input, extensionRegistry);
     }
 }

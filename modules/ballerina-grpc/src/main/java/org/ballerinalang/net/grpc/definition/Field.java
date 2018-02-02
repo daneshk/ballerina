@@ -1,8 +1,6 @@
 package org.ballerinalang.net.grpc.definition;
 
 import com.google.protobuf.DescriptorProtos;
-import com.google.protobuf.Descriptors;
-import org.ballerinalang.net.grpc.ServiceProtoConstants;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +11,7 @@ import java.util.Map;
 public class Field {
     private DescriptorProtos.FieldDescriptorProto fieldDescriptorProto;
     private String fieldType;
+    private String fieldLabel;
 
     private Field(DescriptorProtos.FieldDescriptorProto descriptorProto) {
         this.fieldDescriptorProto = descriptorProto;
@@ -28,6 +27,9 @@ public class Field {
 
     public String getFieldDefinition() {
         StringBuilder fieldDefinition = new StringBuilder();
+        if (fieldLabel != null) {
+            fieldDefinition.append(fieldLabel).append(" ");
+        }
         fieldDefinition.append(fieldType).append(" ").append(fieldDescriptorProto
                 .getName()).append(" = ").append(fieldDescriptorProto.getNumber()).append(";\n");
         return fieldDefinition.toString();
@@ -40,19 +42,22 @@ public class Field {
     public static class Builder {
         private DescriptorProtos.FieldDescriptorProto.Builder fieldDescriptorBuilder;
         private String fieldType;
+        private String fieldLabel;
 
         public Field build() {
             Field field = new Field(fieldDescriptorBuilder.build());
             field.fieldType = fieldType;
+            field.fieldLabel = fieldLabel;
             return field;
         }
 
-        private Builder(String methodName) {
+        private Builder(String fieldName) {
             fieldDescriptorBuilder = DescriptorProtos.FieldDescriptorProto.newBuilder();
-            fieldDescriptorBuilder.setName(methodName);
+            fieldDescriptorBuilder.setName(fieldName);
         }
 
         public Builder setLabel(String label) {
+            fieldLabel = label;
             DescriptorProtos.FieldDescriptorProto.Label protoLabel = sLabelMap.get(label);
             if (protoLabel == null) {
                 throw new IllegalArgumentException("Illegal label: " + label);
@@ -86,8 +91,8 @@ public class Field {
     }
 
 
-    private static Map<String,DescriptorProtos.FieldDescriptorProto.Type> sTypeMap;
-    private static Map<String,DescriptorProtos.FieldDescriptorProto.Label> sLabelMap;
+    private static Map<String, DescriptorProtos.FieldDescriptorProto.Type> sTypeMap;
+    private static Map<String, DescriptorProtos.FieldDescriptorProto.Label> sLabelMap;
 
     static {
         sTypeMap = new HashMap<>();

@@ -1,7 +1,6 @@
 package org.ballerinalang.net.grpc;
 
 import com.google.protobuf.DescriptorProtos;
-import com.google.protobuf.Descriptors;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,8 +21,11 @@ public class ServiceProtoConstants {
     // dot symbol for generate full class path
     public static final char CLASSPATH_SYMBOL = '.';
     // Proto contract directory.
-    public static final String PROTO_BUF_DIRECTORY = "proto_buf";
-
+    public static final String PROTO_BUF_DIRECTORY = "proto-def";
+    // Invalid wire type.
+    public static final int INVALID_WIRE_TYPE = -1;
+    // Embedded messages, packed repeated fields wire type.
+    public static final int MESSAGE_WIRE_TYPE = 2;
     public static final String UTF_8_CHARSET = "UTF-8";
 
     public static final Map<Integer, String> FIELD_TYPE_MAP;

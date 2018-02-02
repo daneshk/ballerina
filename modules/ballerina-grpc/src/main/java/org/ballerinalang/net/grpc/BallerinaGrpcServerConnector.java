@@ -48,7 +48,11 @@ public class BallerinaGrpcServerConnector implements BallerinaServerConnector {
     @Override
     public void serviceRegistered(Service service) throws BallerinaConnectorException {
         if (PROTOCOL_PACKAGE_GRPC.equals(service.getProtocolPackage())) {
-            servicesBuilder.registerService(service);
+            try {
+                servicesBuilder.registerService(service);
+            } catch (GrpcServerException e) {
+                throw new BallerinaConnectorException("Error while registering the service : " + service.getName(), e);
+            }
         }
     }
 

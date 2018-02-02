@@ -15,7 +15,6 @@
  */
 package org.ballerinalang.net.grpc.exception;
 
-import org.ballerinalang.net.grpc.GrpcServicesBuilder;
 
 /**
  * Exception that is thrown when gRPC service registration.

@@ -38,7 +38,7 @@ public class File {
 
     public Descriptors.FileDescriptor getFileDescriptor() throws GrpcServerException {
         try {
-            return Descriptors.FileDescriptor.buildFrom(fileDescriptorProto, new Descriptors.FileDescriptor[] {});
+            return Descriptors.FileDescriptor.buildFrom(fileDescriptorProto, new Descriptors.FileDescriptor[]{});
         } catch (Descriptors.DescriptorValidationException e) {
             throw new GrpcServerException(e);
         }
@@ -104,13 +104,5 @@ public class File {
         private DescriptorProtos.FileDescriptorProto.Builder fileBuilder;
         private List<Message> messageList = new ArrayList<>();
         private List<Service> serviceList = new ArrayList<>();
-    }
-
-    private void writeObject(java.io.ObjectOutputStream stream) throws java.io.IOException {
-        throw new java.io.NotSerializableException( getClass().getName() );
-    }
-
-    private void readObject(java.io.ObjectInputStream stream) throws java.io.IOException, ClassNotFoundException {
-        throw new java.io.NotSerializableException( getClass().getName() );
     }
 }

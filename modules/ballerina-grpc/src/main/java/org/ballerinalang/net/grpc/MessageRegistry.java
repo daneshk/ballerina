@@ -1,8 +1,6 @@
 package org.ballerinalang.net.grpc;
 
-import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
-import org.ballerinalang.net.grpc.definition.Field;
 import org.ballerinalang.net.grpc.exception.GrpcServerException;
 
 import java.util.Collections;
@@ -24,7 +22,8 @@ public class MessageRegistry {
         return messageRegistry;
     }
 
-    public void addMessageDescriptor(String messageName, Descriptors.Descriptor messageDescriptor) throws GrpcServerException {
+    public void addMessageDescriptor(String messageName, Descriptors.Descriptor messageDescriptor) throws
+            GrpcServerException {
         if (messageName == null) {
             throw new GrpcServerException("Message name cannot be null");
         }
