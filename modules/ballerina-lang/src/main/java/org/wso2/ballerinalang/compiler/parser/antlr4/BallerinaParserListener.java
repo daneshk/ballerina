@@ -310,6 +310,18 @@ public interface BallerinaParserListener extends ParseTreeListener {
 	 */
 	void exitStructAttachPoint(BallerinaParser.StructAttachPointContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code fieldAttachPoint}
+	 * labeled alternative in {@link BallerinaParser#attachmentPoint}.
+	 * @param ctx the parse tree
+	 */
+	void enterFieldAttachPoint(BallerinaParser.FieldAttachPointContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code fieldAttachPoint}
+	 * labeled alternative in {@link BallerinaParser#attachmentPoint}.
+	 * @param ctx the parse tree
+	 */
+	void exitFieldAttachPoint(BallerinaParser.FieldAttachPointContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code enumAttachPoint}
 	 * labeled alternative in {@link BallerinaParser#attachmentPoint}.
 	 * @param ctx the parse tree

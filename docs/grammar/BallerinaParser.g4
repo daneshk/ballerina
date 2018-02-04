@@ -123,6 +123,7 @@ attachmentPoint
      | ACTION                               # actionAttachPoint
      | FUNCTION                             # functionAttachPoint
      | STRUCT                               # structAttachPoint
+     | FIELD                                # fieldAttachPoint
      | ENUM                                 # enumAttachPoint
      | CONST                                # constAttachPoint
      | PARAMETER                            # parameterAttachPoint
@@ -510,7 +511,7 @@ parameter
     ;
 
 fieldDefinition
-    :   typeName Identifier (ASSIGN simpleLiteral)? SEMICOLON
+    :   annotationAttachment* typeName Identifier (ASSIGN simpleLiteral)? SEMICOLON
     ;
 
 simpleLiteral

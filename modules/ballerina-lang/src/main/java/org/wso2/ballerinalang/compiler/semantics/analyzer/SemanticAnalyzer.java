@@ -533,6 +533,12 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
                     this.analyzeDef(a, varInitEnv);
                 });
             }
+        } else {
+            varNode.annAttachments.forEach(annotationAttachment -> {
+                annotationAttachment.attachmentPoint =
+                        new BLangAnnotationAttachmentPoint(BLangAnnotationAttachmentPoint.AttachmentPoint.FIELD, null);
+                annotationAttachment.accept(this);
+            });
         }
         varNode.type = varNode.symbol.type;
     }

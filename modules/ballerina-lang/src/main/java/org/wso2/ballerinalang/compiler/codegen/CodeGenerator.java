@@ -1787,6 +1787,12 @@ public class CodeGenerator extends BLangNodeVisitor {
                 structFieldInfo.addAttributeInfo(AttributeInfo.Kind.DEFAULT_VALUE_ATTRIBUTE, defaultVal);
             }
 
+            int annotationAttribNameIndex = addUTF8CPEntry(currentPkgInfo,
+                    AttributeInfo.Kind.ANNOTATIONS_ATTRIBUTE.value());
+            AnnotationAttributeInfo attributeInfo = new AnnotationAttributeInfo(annotationAttribNameIndex);
+            structField.annAttachments.forEach(annt -> visitAnnotationAttachment(annt, attributeInfo));
+            structFieldInfo.addAttributeInfo(AttributeInfo.Kind.ANNOTATIONS_ATTRIBUTE, attributeInfo);
+
             structInfo.fieldInfoEntries.add(structFieldInfo);
             structField.symbol.varIndex = getNextIndex(structFieldInfo.fieldType.tag, fieldIndexes);
         }

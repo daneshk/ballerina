@@ -19,6 +19,7 @@ ACTION      : 'action' ;
 STRUCT      : 'struct' ;
 ANNOTATION  : 'annotation' ;
 ENUM        : 'enum' ;
+FIELD       : 'field';
 PARAMETER   : 'parameter' ;
 CONST       : 'const' ;
 TRANSFORMER : 'transformer' ;

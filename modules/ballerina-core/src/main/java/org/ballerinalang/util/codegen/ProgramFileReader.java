@@ -18,6 +18,10 @@
 package org.ballerinalang.util.codegen;
 
 import org.ballerinalang.connector.api.AbstractNativeAction;
+import org.ballerinalang.connector.api.AnnAttrValue;
+import org.ballerinalang.connector.api.AnnotationValueType;
+import org.ballerinalang.connector.impl.BAnnAttrValue;
+import org.ballerinalang.connector.impl.BAnnotation;
 import org.ballerinalang.model.types.BArrayType;
 import org.ballerinalang.model.types.BConnectorType;
 import org.ballerinalang.model.types.BEnumType;
@@ -1654,6 +1658,15 @@ public class ProgramFileReader {
 
                 // Create the StructField in the BStructType. This is required for the type equivalence algorithm
                 BStructType.StructField structField = new BStructType.StructField(fieldType, fieldInfo.getName());
+
+                AnnotationAttributeInfo attributeInfo = (AnnotationAttributeInfo) fieldInfo.getAttributeInfo(
+                        AttributeInfo.Kind.ANNOTATIONS_ATTRIBUTE);
+                if (attributeInfo != null) {
+                    for (AnnAttachmentInfo annotationInfo : attributeInfo.getAttachmentInfoEntries()) {
+                        BAnnotation annotation = buildAnnotation(annotationInfo);
+                        structField.addAnnotation(annotation.getKey(), annotation);
+                    }
+                }
                 structFields[i] = structField;
             }
 
@@ -1662,6 +1675,55 @@ public class ProgramFileReader {
             structType.setFieldTypeCount(attributeInfo.getVarTypeCount());
             structType.setStructFields(structFields);
         }
+    }
+
+    private BAnnotation buildAnnotation(AnnAttachmentInfo annAttachmentInfo) {
+        BAnnotation annotation = new BAnnotation(annAttachmentInfo.getName(), annAttachmentInfo.getPkgPath());
+
+        for (AnnAttributeKeyValuePair keyValuePair : annAttachmentInfo.getAttributeKeyValuePairs()) {
+            AnnAttributeValue attributeValue = keyValuePair.getAttributeValue();
+            AnnAttrValue annotationValue = getAttributeValue(attributeValue);
+            annotation.addAnnotationValue(keyValuePair.getAttributeName(), annotationValue);
+        }
+        return annotation;
+    }
+
+    private AnnAttrValue getAttributeValue(AnnAttributeValue attributeValue) {
+        BAnnAttrValue annotationValue = null;
+        switch (attributeValue.getTypeDesc()) {
+            case TypeSignature.SIG_INT:
+                annotationValue = new BAnnAttrValue(AnnotationValueType.INT);
+                annotationValue.setIntValue(attributeValue.getIntValue());
+                break;
+            case TypeSignature.SIG_FLOAT:
+                annotationValue = new BAnnAttrValue(AnnotationValueType.FLOAT);
+                annotationValue.setFloatValue(attributeValue.getFloatValue());
+                break;
+            case TypeSignature.SIG_STRING:
+                annotationValue = new BAnnAttrValue(AnnotationValueType.STRING);
+                annotationValue.setStringValue(attributeValue.getStringValue());
+                break;
+            case TypeSignature.SIG_BOOLEAN:
+                annotationValue = new BAnnAttrValue(AnnotationValueType.BOOLEAN);
+                annotationValue.setBooleanValue(attributeValue.getBooleanValue());
+                break;
+            case TypeSignature.SIG_ANNOTATION:
+                annotationValue = new BAnnAttrValue(AnnotationValueType.ANNOTATION);
+                annotationValue.setAnnotation(buildAnnotation(attributeValue.getAnnotationAttachmentValue()));
+                break;
+            case TypeSignature.SIG_ARRAY:
+                int length = attributeValue.getAttributeValueArray().length;
+                AnnAttrValue[] annotationValues = new AnnAttrValue[length];
+                AnnAttributeValue[] annAttributeValues = attributeValue.getAttributeValueArray();
+                for (int i = 0; i < length; i++) {
+                    annotationValues[i] = getAttributeValue(annAttributeValues[i]);
+                }
+                annotationValue = new BAnnAttrValue(AnnotationValueType.ARRAY);
+                annotationValue.setAnnotationValueArray(annotationValues);
+                break;
+            default:
+        }
+        return annotationValue;
     }
 
     private void resolveConnectorMethodTables(PackageInfo packageInfo) {

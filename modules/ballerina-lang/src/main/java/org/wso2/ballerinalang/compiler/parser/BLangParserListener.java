@@ -634,6 +634,25 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         this.pkgBuilder.addAttachPoint(BLangAnnotationAttachmentPoint.AttachmentPoint.STRUCT, null);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation does nothing.</p>
+     */
+    @Override public void enterFieldAttachPoint(BallerinaParser.FieldAttachPointContext ctx) { }
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation does nothing.</p>
+     */
+    @Override public void exitFieldAttachPoint(BallerinaParser.FieldAttachPointContext ctx) {
+        if (ctx.exception != null) {
+            return;
+        }
+
+        this.pkgBuilder.addAttachPoint(BLangAnnotationAttachmentPoint.AttachmentPoint.FIELD, null);
+    }
+
     @Override
     public void exitEnumAttachPoint(BallerinaParser.EnumAttachPointContext ctx) {
         if (ctx.exception != null) {
@@ -2036,10 +2055,10 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         if (ctx.parent instanceof BallerinaParser.StructBodyContext) {
         this.pkgBuilder.addVarToStruct(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                ctx.simpleLiteral() != null, 0);
+                ctx.simpleLiteral() != null, ctx.annotationAttachment().size());
         } else if (ctx.parent instanceof BallerinaParser.AnnotationBodyContext) {
             this.pkgBuilder.addVarToAnnotation(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                    ctx.simpleLiteral() != null, 0);
+                    ctx.simpleLiteral() != null, ctx.annotationAttachment().size());
         }
     }
 

@@ -17,8 +17,12 @@
 */
 package org.ballerinalang.model.types;
 
+import org.ballerinalang.connector.api.Annotation;
 import org.ballerinalang.model.values.BStruct;
 import org.ballerinalang.model.values.BValue;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * {@code BStructType} represents a user defined {@code StructDef} in Ballerina.
@@ -86,6 +90,16 @@ public class BStructType extends BType {
     public static class StructField {
         public BType fieldType;
         public String fieldName;
+        public Map<String, Annotation> annotationMap = new HashMap<>();
+
+        public void addAnnotation(String key, Annotation annotation) {
+            annotationMap.putIfAbsent(key, annotation);
+        }
+
+        public Annotation getAnnotation(String pkgPath, String name) {
+            String key = pkgPath + ":" + name;
+            return annotationMap.get(key);
+        }
 
         public StructField(BType fieldType, String fieldName) {
             this.fieldType = fieldType;
