@@ -17,20 +17,46 @@
   -->
 <FindBugsFilter>
     <!-- TODO Fix following findbug issues-->
-    <Match>
-        <Class name="org.ballerinalang.net.grpc.GRPCClientStub"/>
-        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+<!--    <Match>
+        <Class name="org.ballerinalang.net.http.CorsPopulator"/>
     </Match>
     <Match>
-        <Class name="org.ballerinalang.net.grpc.actions.Execute"/>
-        <Bug pattern="BC_UNCONFIRMED_CAST_OF_RETURN_VALUE"/>
+        <Class name="org.ballerinalang.net.http.BallerinaHttpServerConnector"/>
     </Match>
     <Match>
-        <Class name="org.ballerinalang.net.grpc.definition.ServiceProto"/>
-        <Bug pattern="DMI_HARDCODED_ABSOLUTE_FILENAME"/>
+        <Class name="org.ballerinalang.net.uri.DispatcherUtil"/>
     </Match>
     <Match>
-        <Class name="org.ballerinalang.net.grpc.definition.ServiceProto"/>
-        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Class name="org.ballerinalang.net.uri.parser.Node"/>
     </Match>
+    <Match>
+        <Class name="org.ballerinalang.net.uri.parser.SimpleSplitStringExpression"/>
+    </Match>
+    <Match>
+        <Class name="org.ballerinalang.net.ws.Constants"/>
+    </Match>
+    <Match>
+        <Class name="org.ballerinalang.net.ws.WebSocketService"/>
+    </Match>
+    <Match>
+        <Class name="org.ballerinalang.net.ws.WebSocketServicesRegistry"/>
+    </Match>
+    <Match>
+        <Class name="org.ballerinalang.net.http.BallerinaHttpServerConnector"/>
+    </Match>
+    <Match>
+        <Package name="org.ballerinalang.net.http"/>
+    </Match>
+    <Match>
+        <Package name="org.ballerinalang.net.http.nativeimpl.session"/>
+    </Match>
+    <Match>
+        <Package name="org.ballerinalang.net.ws"/>
+    </Match>
+    <Match>
+        <Package name="org.ballerinalang.net.http.session"/>
+    </Match>
+    <Match>
+        <Package name="org.ballerinalang.net.http.util"/>
+    </Match>-->
 </FindBugsFilter>
