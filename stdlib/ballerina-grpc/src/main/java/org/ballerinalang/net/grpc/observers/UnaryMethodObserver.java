@@ -17,9 +17,6 @@ package org.ballerinalang.net.grpc.observers;
 
 import io.grpc.stub.StreamObserver;
 import org.ballerinalang.bre.Context;
-import org.ballerinalang.connector.api.BallerinaConnectorException;
-import org.ballerinalang.connector.api.ConnectorUtils;
-import org.ballerinalang.net.grpc.BallerinaGrpcServerConnector;
 import org.ballerinalang.net.grpc.builder.BalGenerate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,17 +38,17 @@ public class UnaryMethodObserver implements StreamObserver<com.google.protobuf.M
         LOG.info(value.toString());
 //        BallerinaGrpcServerConnector grpcServerConnector = (BallerinaGrpcServerConnector) ConnectorUtils.
 //                getBallerinaServerConnector(context, "ballerina.net.grpc");
-       
+    
         
     }
     
     @Override
     public void onError(Throwable t) {
-    LOG.info("Err 1");
+        LOG.info("Err 1");
     }
     
     @Override
     public void onCompleted() {
-    LOG.info("Done...1");
+        LOG.info("Done...1");
     }
 }

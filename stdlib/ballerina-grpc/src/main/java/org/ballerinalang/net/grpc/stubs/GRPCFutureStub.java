@@ -3,10 +3,11 @@ package org.ballerinalang.net.grpc.stubs;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 
-/**.
+/**
+ * .
  * .
  */
-public class GRPCFutureStub extends io.grpc.stub.AbstractStub<GRPCFutureStub>  {
+public class GRPCFutureStub extends io.grpc.stub.AbstractStub<GRPCFutureStub> {
     public GRPCFutureStub(Channel channel) {
         super(channel);
     }
@@ -17,7 +18,7 @@ public class GRPCFutureStub extends io.grpc.stub.AbstractStub<GRPCFutureStub>  {
     
     @Override
     protected GRPCFutureStub build(Channel channel, CallOptions callOptions) {
-        return  new GRPCFutureStub(channel, callOptions);
+        return new GRPCFutureStub(channel, callOptions);
     }
     
 }

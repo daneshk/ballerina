@@ -33,27 +33,22 @@ import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.net.grpc.Message;
 import org.ballerinalang.net.grpc.MessageConstants;
 import org.ballerinalang.net.grpc.MessageRegistry;
-import org.ballerinalang.net.grpc.builder.BalGenerate;
 import org.ballerinalang.net.grpc.exception.UnsupportedFieldTypeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.ballerinalang.net.grpc.MessageConstants.ON_ERROR_RESOURCE;
+import static org.ballerinalang.net.grpc.MessageConstants.ON_MESSAGE_RESOURCE;
 
 /**
- * This is Client Streaming Method Implementation for gRPC Service Call.
+ * This is Bidirectional Streaming Method Implementation for gRPC Service Call.
  */
-public class ServerStreamingObserver implements StreamObserver<com.google.protobuf.Message> {
-    public static final Logger LOG = LoggerFactory.getLogger(BalGenerate.class);
-    private String resourceName;
+public class BidirectionalStreamingObserver implements StreamObserver<com.google.protobuf.Message> {
     private Map<String, Resource> resourceMap = new HashMap<>();
+    private io.grpc.stub.StreamObserver<com.google.protobuf.Message> responseObserver;
     
-    public ServerStreamingObserver(Service service, String resourceName) {
-        this.resourceName = resourceName;
+    public BidirectionalStreamingObserver(Service service) {
         for (Resource resource : service.getResources()) {
             resourceMap.put(resource.getName(), resource);
         }
@@ -61,35 +56,31 @@ public class ServerStreamingObserver implements StreamObserver<com.google.protob
     
     @Override
     public void onNext(com.google.protobuf.Message value) {
-        LOG.info(value.toString());
-        Resource resource = resourceMap.get(this.resourceName);
+        Resource resource = resourceMap.get(ON_MESSAGE_RESOURCE);
         List<ParamDetail> paramDetails = resource.getParamDetails();
         BValue[] signatureParams = new BValue[paramDetails.size()];
-        //signatureParams[0] = getConnectionParameter(responseObserver);
+        // signatureParams[0] = getConnectionParameter(responseObserver);
         BValue requestParam = getRequestParameter((Message) value, resource);
         if (requestParam != null) {
-            signatureParams[0] = requestParam;
+            signatureParams[1] = requestParam;
         }
         Executor.execute(resource, null, signatureParams);
-//        BallerinaGrpcServerConnector grpcServerConnector = (BallerinaGrpcServerConnector) ConnectorUtils.
-//                getBallerinaServerConnector(context, "ballerina.net.grpc");
-//        grpcServerConnector.
-//        grpcServerConnector.serviceRegistered(null);
     }
     
     @Override
     public void onError(Throwable t) {
-        Resource resource = resourceMap.get(ON_ERROR_RESOURCE);
-        LOG.info("Err 2");
+    
+    }
+    
+    public void setResponseObserver(StreamObserver<com.google.protobuf.Message> responseObserver) {
+        this.responseObserver = responseObserver;
     }
     
     @Override
     public void onCompleted() {
-        LOG.info("Done...2");
         Resource onCompleted = resourceMap.get(MessageConstants.ON_COMPLETE_RESOURCE);
         List<ParamDetail> paramDetails = onCompleted.getParamDetails();
         BValue[] signatureParams = new BValue[paramDetails.size()];
-        //yavanna ooni observer
         //signatureParams[0] = getConnectionParameter(responseObserver);
         Executor.execute(onCompleted, null, signatureParams);
     }

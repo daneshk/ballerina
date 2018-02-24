@@ -150,7 +150,7 @@ public class BalGenerate {
                     .getMessageTypeList());
             for (DescriptorProtos.MethodDescriptorProto methodDescriptorProto : methodList) {
                 // TODO: 2/13/18 proper array
-                String strout = methodDescriptorProto.getOutputType().split("\\.")[methodDescriptorProto
+                String strOut = methodDescriptorProto.getOutputType().split("\\.")[methodDescriptorProto
                         .getOutputType().split("\\.").length - 1];
                 String strIn = methodDescriptorProto.getInputType().split("\\.")[methodDescriptorProto
                         .getInputType().split("\\.").length - 1];
@@ -158,13 +158,16 @@ public class BalGenerate {
                 if (fileDescriptorSet.getMessageTypeList().size() > 0) {
                     actionList = actionList.append(NEW_LINE_CHARACTER).append(generateActions(methodDescriptorProto
                                     .getName(), getMappingBalType(strIn), getMappingBalType
-                                    (strout), i, stringObjectMap.get(strIn).getFieldList().get(0).getName(),
+                                    (strOut), i, stringObjectMap.get(strIn).getFieldList().get(0).getName(),
                             getTypeName(stringObjectMap.get(strIn).getFieldList().get(0)
+                                    .getType().getNumber()), stringObjectMap.get(strOut).getFieldList().get(0)
+                                    .getName(), getTypeName(stringObjectMap.get(strOut).getFieldList().get(0)
                                     .getType().getNumber())));
                 } else {
                     actionList = actionList.append(NEW_LINE_CHARACTER).append(generateActions(methodDescriptorProto
                             .getName(), getMappingBalType(strIn), getMappingBalType
-                            (strout), i, null, null));
+                            (strOut), i, null, null, null,
+                            null));
                 }
                 i++;
             }
@@ -223,51 +226,100 @@ public class BalGenerate {
         writer.print(payload);
         writer.close();
     }
-
+    
+    /**
+     * .
+     * @param methodName         .
+     * @param reqMessageName     .
+     * @param resMessageName     .
+     * @param methodID           .
+     * @param reqStructFieldName .
+     * @param reqStructFieldType .
+     * @param resStructFieldName .
+     * @param resStructFieldType .
+     * @return .
+     */
     private static String generateActions(String methodName, String reqMessageName, String resMessageName,
-                                          int methodID, String firstAttributeName, String firstAttributeType) {
-
-        String str2;
-        if (firstAttributeName != null) {
-            str2 = "        any value;" + NEW_LINE_CHARACTER +
-                    "        if (castErr != null) {" + NEW_LINE_CHARACTER +
-                    "            %s p1 = {};" + NEW_LINE_CHARACTER +
-                    "            p1.%s,_=(%s)req;" + NEW_LINE_CHARACTER +
-                    "            value = p1;" + NEW_LINE_CHARACTER +
-                    "        } else {" + NEW_LINE_CHARACTER +
-                    "            value = s;" + NEW_LINE_CHARACTER +
-                    "        }" + NEW_LINE_CHARACTER;
-            str2 = String.format(str2, reqMessageName, firstAttributeName, firstAttributeType);
-        } else {
-            str2 = "any value = s;" + NEW_LINE_CHARACTER;
+                                          int methodID, String reqStructFieldName, String reqStructFieldType,
+                                          String resStructFieldName, String resStructFieldType) {
+        String templPrt1 = "", templPrt2 = "";
+        String template =
+                "    action %s (grpc:Connection conn, any req) (any, error) {" + NEW_LINE_CHARACTER +
+                        "" + NEW_LINE_CHARACTER +
+                        "        %s" + NEW_LINE_CHARACTER +
+                        "" + NEW_LINE_CHARACTER +
+                        "        var res, err3 = ep.execute(conn, value, %d);" + NEW_LINE_CHARACTER +
+                        "        if (err3 != null) {" + NEW_LINE_CHARACTER +
+                        "            error e = {msg:err3.msg};" + NEW_LINE_CHARACTER +
+                        "            return null, e;" + NEW_LINE_CHARACTER +
+                        "        }" + NEW_LINE_CHARACTER +
+                        "" + NEW_LINE_CHARACTER +
+                        "        %s" + NEW_LINE_CHARACTER +
+                        "" + NEW_LINE_CHARACTER +
+                        "        return value, null;" + NEW_LINE_CHARACTER +
+                        "    }";
+        
+        if (resStructFieldName != null) {
+            String template5 =
+                    "var response, err4 = (%s)res;" + NEW_LINE_CHARACTER +
+                            "        if (err4 != null) {" + NEW_LINE_CHARACTER +
+                            "            %s resObj = {};" + NEW_LINE_CHARACTER +
+                            "            var %s, err5 = (%s)req;" + NEW_LINE_CHARACTER +
+                            "            if (err5 != null) {" + NEW_LINE_CHARACTER +
+                            "                error e = {msg:err5.msg};" + NEW_LINE_CHARACTER +
+                            "                return null, e;" + NEW_LINE_CHARACTER +
+                            "            }" + NEW_LINE_CHARACTER +
+                            "            resObj.%s = %s;" + NEW_LINE_CHARACTER +
+                            "            value = resObj;" + NEW_LINE_CHARACTER +
+                            "        } else {" + NEW_LINE_CHARACTER +
+                            "            value = response;" + NEW_LINE_CHARACTER +
+                            "        }" + NEW_LINE_CHARACTER;
+            templPrt2 = String.format(template5, resMessageName, resMessageName, resStructFieldName,
+                    resStructFieldType, resStructFieldName, resStructFieldName);
         }
-        String str = "action %s (grpc:Connection conn, any req) (any,error) {" + NEW_LINE_CHARACTER +
-                "        var s, castErr = (%s)req;" + NEW_LINE_CHARACTER +
-                "        %s " + NEW_LINE_CHARACTER +
-                "        var respons, e = ep.execute(conn, value, %d);" + NEW_LINE_CHARACTER +
-                "         if (e != null) {" + NEW_LINE_CHARACTER +
-                "            println(\"Error from Stub: \" + e.msg);" + NEW_LINE_CHARACTER +
-                "            error err = {msg:e.msg};" + NEW_LINE_CHARACTER +
-                "            return null,err;" + NEW_LINE_CHARACTER +
-                "        }" + NEW_LINE_CHARACTER +
-                "        var responseMap, cEr = (map)respons;" + NEW_LINE_CHARACTER +
-                "        if (cEr != null) {" + NEW_LINE_CHARACTER +
-                "                       println(\"error: \" + cEr.msg);" + NEW_LINE_CHARACTER +
-                "            error err = {msg:cEr.msg};" + NEW_LINE_CHARACTER +
-                "            return null,err;" + NEW_LINE_CHARACTER +
-                "        }" + NEW_LINE_CHARACTER +
-                "        if ((lengthof responseMap) <= 1) {" + NEW_LINE_CHARACTER +
-                "            return responseMap.message,null;" + NEW_LINE_CHARACTER +
-                "        }" + NEW_LINE_CHARACTER +
-                "        var response, conversionErr = <%s>responseMap;" + NEW_LINE_CHARACTER +
-                "        if (conversionErr != null) {" + NEW_LINE_CHARACTER +
-                "                        println(\"error: \" + conversionErr.msg);" + NEW_LINE_CHARACTER +
-                "            error err = {msg:conversionErr.msg};" + NEW_LINE_CHARACTER +
-                "            return null,err;" + NEW_LINE_CHARACTER +
-                "        }" + NEW_LINE_CHARACTER +
-                "        return response,null;" + NEW_LINE_CHARACTER +
-                "    }";
-        return String.format(str, methodName, reqMessageName, str2, methodID, resMessageName);
+        if (reqStructFieldName != null) {
+            String template2 =
+                    "var request, err = (%s)req;" + NEW_LINE_CHARACTER +
+                            "        any value;" + NEW_LINE_CHARACTER +
+                            "        if (err != null) {" + NEW_LINE_CHARACTER +
+                            "            %s reqObj = {};" + NEW_LINE_CHARACTER +
+                            "            var %s, err2 = (%s)req;" + NEW_LINE_CHARACTER +
+                            "            if (err2 != null) {" + NEW_LINE_CHARACTER +
+                            "                error e = {msg:err2.msg};" + NEW_LINE_CHARACTER +
+                            "                return null, e;" + NEW_LINE_CHARACTER +
+                            "            }" + NEW_LINE_CHARACTER +
+                            "            reqObj.%s = %s;" + NEW_LINE_CHARACTER +
+                            "            value = reqObj;" + NEW_LINE_CHARACTER +
+                            "        } else {" + NEW_LINE_CHARACTER +
+                            "            value = request;" + NEW_LINE_CHARACTER +
+                            "        }" + NEW_LINE_CHARACTER;
+            templPrt1 = String.format(template2, reqMessageName, reqMessageName, reqStructFieldName,
+                    reqStructFieldType, reqStructFieldName, reqStructFieldName);
+        }
+        if (reqStructFieldName == null) {
+            String template3 =
+                    "var request, err = (%s)req;" + NEW_LINE_CHARACTER +
+                            "        any value;" + NEW_LINE_CHARACTER +
+                            "        if (err != null) {" + NEW_LINE_CHARACTER +
+                            "            error e = {msg:err.msg};" + NEW_LINE_CHARACTER +
+                            "            return null, e;" + NEW_LINE_CHARACTER +
+                            "        } else {" + NEW_LINE_CHARACTER +
+                            "            value = request;" + NEW_LINE_CHARACTER +
+                            "        }" + NEW_LINE_CHARACTER;
+            templPrt1 = String.format(template3, reqMessageName);
+        }
+        if (resStructFieldName == null) {
+            String template4 =
+                    "var response, err4 = (%s)res;" + NEW_LINE_CHARACTER +
+                            "        if (err4 != null) {" + NEW_LINE_CHARACTER +
+                            "            error e = {msg:err4.msg};" + NEW_LINE_CHARACTER +
+                            "            return null, e;" + NEW_LINE_CHARACTER +
+                            "        } else {" + NEW_LINE_CHARACTER +
+                            "            value = response;" + NEW_LINE_CHARACTER +
+                            "        }" + NEW_LINE_CHARACTER;
+            templPrt2 = String.format(template4, resMessageName);
+        }
+        return String.format(template, methodName, templPrt1, methodID, templPrt2);
     }
 
     private static String generateConnector(String actionList, String packageName, String connectorName) {

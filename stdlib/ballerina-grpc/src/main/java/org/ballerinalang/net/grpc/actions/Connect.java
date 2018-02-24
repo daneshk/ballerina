@@ -25,8 +25,7 @@ import org.ballerinalang.util.codegen.StructInfo;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * .
+/**.
  * .
  */
 @BallerinaAction(
@@ -36,10 +35,11 @@ import java.util.List;
         args = {
                 @Argument(name = "stubType", type = TypeKind.ANY),
                 @Argument(name = "describtorMap", type = TypeKind.MAP)
-            
+              
         },
         returnType = {
-                @ReturnType(type = TypeKind.STRUCT, structType = "Connection", structPackage = "ballerina.net.grpc"),
+                @ReturnType(type = TypeKind.STRUCT, structType = "ClientConnection",
+                        structPackage = "ballerina.net.grpc"),
                 @ReturnType(type = TypeKind.STRUCT, structType = "ConnectorError",
                         structPackage = "ballerina.net.grpc"),
         },
@@ -49,14 +49,13 @@ import java.util.List;
         }
 )
 public class Connect extends AbstractNativeAction {
-    private static ServiceProto serviceProto;
-    
+private static  ServiceProto serviceProto;
     @Override
     public ConnectorFuture execute(Context context) {
-        
+
         String host, stubType;
         BMap bMap;
-        
+       
         int port;
         BStruct outboundError = createStruct(context, "ConnectorError");
         ClientConnectorFuture ballerinaFuture = new ClientConnectorFuture();
@@ -87,7 +86,7 @@ public class Connect extends AbstractNativeAction {
                     .usePlaintext(true)
                     .build();
             GRPCClientStub grpcClientStub = new GRPCClientStub(serviceProto);
-            BStruct outboundResponse = createStruct(context, "Connection");
+            BStruct outboundResponse = createStruct(context, "ClientConnection");
             outboundResponse.setStringField(0, host);
             outboundResponse.setIntField(0, port);
             if ("blocking".equalsIgnoreCase(stubType)) {
@@ -111,11 +110,11 @@ public class Connect extends AbstractNativeAction {
             ballerinaFuture.notifyReply(null, outboundError);
             return ballerinaFuture;
         }
-        
+
     }
-    
+
     private static byte[] hexStringToByteArray(String s) {
-        
+
         int len = s.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
@@ -124,9 +123,9 @@ public class Connect extends AbstractNativeAction {
         }
         return data;
     }
-    
+
     private BStruct createStruct(Context context, String structName) {
-        
+
         PackageInfo httpPackageInfo = context.getProgramFile()
                 .getPackageInfo("ballerina.net.grpc");
         StructInfo structInfo = httpPackageInfo.getStructInfo(structName);

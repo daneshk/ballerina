@@ -6,11 +6,11 @@ import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import org.ballerinalang.net.grpc.GRPCClientStub;
 
-import static io.grpc.stub.ClientCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ClientCalls.blockingServerStreamingCall;
 import static io.grpc.stub.ClientCalls.blockingUnaryCall;
 
-/**.
+/**
+ * .
  * .
  */
 public class GRPCBlockingStub extends io.grpc.stub.AbstractStub<GRPCBlockingStub> {
@@ -29,17 +29,23 @@ public class GRPCBlockingStub extends io.grpc.stub.AbstractStub<GRPCBlockingStub
     }
     
     /**
+     * .
+     * @param request .
+     * @param methodID .
+     * @return .
      */
     public java.util.Iterator<com.google.protobuf.StringValue> executeServerStreaming(
-            Message request,int methodID) {
-        MethodDescriptor methodDescriptor =(MethodDescriptor<Message, Message>) GRPCClientStub
+            Message request, int methodID) {
+        MethodDescriptor methodDescriptor = (MethodDescriptor<Message, Message>) GRPCClientStub
                 .getMethodDescriptorMap().get(methodID);
         return blockingServerStreamingCall(
                 getChannel(), methodDescriptor, getCallOptions(), request);
     }
+    
     /**
      * .
-     * @param request .
+     *
+     * @param request  .
      * @param methodID .
      * @return .
      */

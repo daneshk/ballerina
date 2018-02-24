@@ -109,8 +109,6 @@ public class BalGenerate {
     
     /**
      * .
-     * .
-     *
      * @param methodName         .
      * @param reqMessageName     .
      * @param resMessageName     .
@@ -126,7 +124,7 @@ public class BalGenerate {
                                           String resStructFieldName, String resStructFieldType) {
         String templPrt1 = "", templPrt2 = "";
         String template =
-                "    action %s (grpc:Connection conn, any req) (any, error) {" + NEW_LINE_CHARACTER +
+                "    action %s (grpc:ClientConnection conn, any req) (any, error) {" + NEW_LINE_CHARACTER +
                         "" + NEW_LINE_CHARACTER +
                         "        %s" + NEW_LINE_CHARACTER +
                         "" + NEW_LINE_CHARACTER +
@@ -223,9 +221,9 @@ public class BalGenerate {
                 "        create grpc:GRPCConnector(host, port);" + NEW_LINE_CHARACTER +
                 "    }" + NEW_LINE_CHARACTER +
                 NEW_LINE_CHARACTER +
-                "    action connect (string stubType) (grpc:Connection, error) {" + NEW_LINE_CHARACTER +
+                "    action connect (string stubType) (grpc:ClientConnection, error) {" + NEW_LINE_CHARACTER +
                 "        var resp, convErr = ep.connect(stubType,descriptorMap);" + NEW_LINE_CHARACTER +
-                "        var conn, er = <grpc:Connection>resp;" + NEW_LINE_CHARACTER +
+                "        var conn, er = <grpc:ClientConnection>resp;" + NEW_LINE_CHARACTER +
                 "        var connErr, er = <grpc:ConnectorError>convErr;" + NEW_LINE_CHARACTER +
                 "        if (connErr != null) {" + NEW_LINE_CHARACTER +
                 "            println(\"Error: \" + connErr.msg);" + NEW_LINE_CHARACTER +

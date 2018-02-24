@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
         actionName = "execute",
         connectorName = "GRPCConnector",
         args = {
-                @Argument(name = "conn", type = TypeKind.STRUCT, structType = "Connection", structPackage =
+                @Argument(name = "conn", type = TypeKind.STRUCT, structType = "ClientConnection", structPackage =
                         "ballerina.net.grpc"),
                 @Argument(name = "payload", type = TypeKind.ANY),
                 @Argument(name = "methodID", type = TypeKind.INT)
