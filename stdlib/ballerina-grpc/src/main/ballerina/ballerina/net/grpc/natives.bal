@@ -5,8 +5,28 @@ public native function getHeader(string headerName) (string);
 @Description { value:"Represents the gRPC server connector connection"}
 @Field {value:"remoteHost: The server host name"}
 @Field {value:"port: The server port"}
+public struct ClientConnection {
+    int port;
+    string host;
+}
 public struct Connection {
     int id;
+}
+@Description {value:"gRPC protobuf client connector for outbound gRPC requests"}
+@Param {value:"serviceUri: Url of the service"}
+@Param {value:"connectorOptions: connector options"}
+public connector GRPCConnector (string host, int port) {
+    @Description {value:"Connection."}
+    native action connect (string stubType, map describtorMap) (ClientConnection, ConnectorError);
+
+    @Description {value:"Connection."}
+    native action addObserver (string methodId, string observerName) (ClientConnection, ConnectorError);
+
+    @Description {value:"The execute action implementation of the gRPC Connector."}
+    @Param {value:"Connection stub."}
+    @Param {value:"Any type of request parameters."}
+    native action execute (ClientConnection conn, any payload,int methodID) (any , ConnectorError);
+
 }
 
 @Description { value:"Sends outbound response to the caller"}
@@ -30,6 +50,29 @@ public native function <Connection conn> isCancelled () (boolean);
 @Param { value:"res: The inbound response message" }
 @Return { value:"Error occured during HTTP server connector forward" }
 public native function <Connection conn> error (ServerError serverError) (ConnectorError);
+
+@Description { value:"Sends outbound response to the caller"}
+@Param { value:"conn: The server connector connection" }
+@Param { value:"res: The outbound response message" }
+@Return { value:"Error occured during HTTP server connector respond" }
+public native function <ClientConnection conn> send (any res) (ConnectorError);
+
+
+
+
+@Description { value:"Informs the caller, server finished sending messages."}
+@Param { value:"conn: The server connector connection" }
+@Return { value:"Error occured during HTTP server connector respond" }
+public native function <ClientConnection conn> complete () (ConnectorError);
+
+@Description { value:"Forwards inbound response to the caller"}
+@Param { value:"conn: The server connector connection" }
+@Param { value:"res: The inbound response message" }
+@Return { value:"Error occured during HTTP server connector forward" }
+public native function <ClientConnection conn> error (ServerError serverError) (ConnectorError);
+
+
+
 
 @Description { value:"ConnectorError struct represents an error occured during the HTTP client invocation" }
 @Field {value:"msg:  An error message explaining about the error"}

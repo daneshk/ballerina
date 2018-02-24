@@ -24,8 +24,10 @@ import org.ballerinalang.connector.api.BallerinaServerConnector;
 import org.ballerinalang.connector.api.Service;
 import org.ballerinalang.net.grpc.exception.GrpcServerException;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This is the gRPC implementation for the {@code BallerinaServerConnector} API.
@@ -34,28 +36,30 @@ import java.util.List;
  */
 @JavaSPIService("org.ballerinalang.connector.api.BallerinaServerConnector")
 public class BallerinaGrpcServerConnector implements BallerinaServerConnector {
-
-    private static final String PROTOCOL_PACKAGE_GRPC = "ballerina.net.grpc";
+    public static final String PACKAGE_NAME_SEPERATOR = ".";
+    public static final String PROTOCOL_PACKAGE_GRPC = "ballerina.net.grpc";
     private final GrpcServicesBuilder servicesBuilder = new GrpcServicesBuilder();
-
+    private static final Map<String, Service> grpcServicesRegistry = new HashMap<>();
+    
     @Override
     public List<String> getProtocolPackages() {
         List<String> protocolPackages = new LinkedList<>();
         protocolPackages.add(PROTOCOL_PACKAGE_GRPC);
         return protocolPackages;
     }
-
+    
     @Override
     public void serviceRegistered(Service service) throws BallerinaConnectorException {
         if (PROTOCOL_PACKAGE_GRPC.equals(service.getProtocolPackage())) {
             try {
                 servicesBuilder.registerService(service);
+                grpcServicesRegistry.put(PROTOCOL_PACKAGE_GRPC + PACKAGE_NAME_SEPERATOR + service.getName(), service);
             } catch (GrpcServerException e) {
                 throw new BallerinaConnectorException("Error while registering the service : " + service.getName(), e);
             }
         }
     }
-
+    
     @Override
     public void deploymentComplete() throws BallerinaConnectorException {
         try {
@@ -64,5 +68,10 @@ public class BallerinaGrpcServerConnector implements BallerinaServerConnector {
         } catch (GrpcServerException | InterruptedException e) {
             throw new BallerinaConnectorException(e);
         }
+    }
+    
+    public static Service getregisteredService(String serviceName) {
+        String serviceFullName = PROTOCOL_PACKAGE_GRPC + PACKAGE_NAME_SEPERATOR + serviceName;
+        return grpcServicesRegistry.get(serviceFullName);
     }
 }
