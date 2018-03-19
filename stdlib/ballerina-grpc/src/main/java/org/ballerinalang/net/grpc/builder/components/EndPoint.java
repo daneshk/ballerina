@@ -18,12 +18,12 @@
 package org.ballerinalang.net.grpc.builder.components;
 
 /**
- * Bean object.
+ * Bean class of client endpoint object.
  */
-public class NonBlockingEndPoint {
+public class EndPoint {
     private String connectorId;
     
-    public NonBlockingEndPoint(String connectorId) {
+    public EndPoint(String connectorId) {
         this.connectorId = connectorId;
     }
     
