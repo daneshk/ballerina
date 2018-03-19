@@ -33,7 +33,6 @@ function main (string[] args) {
     io:println("Client got response successfully.");
 }
 
-
 service<grpc:Listener> helloWorldMessageListener {
 
     onMessage (string message) {
@@ -51,4 +50,3 @@ service<grpc:Listener> helloWorldMessageListener {
         io:println("Server Complete Sending Responses.");
     }
 }
-

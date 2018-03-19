@@ -17,11 +17,11 @@ package client;
 import ballerina.net.grpc;
 import ballerina.io;
 
-
 struct helloWorldBlockingStub {
     grpc:Client clientEndpoint;
     grpc:ServiceStub serviceStub;
 }
+
 function <helloWorldBlockingStub stub> initStub(grpc:Client clientEndpoint) {
     grpc:ServiceStub navStub = {};
     navStub.initStub(clientEndpoint, "blocking", descriptorKey, descriptorMap);
@@ -32,12 +32,12 @@ struct helloWorldStub {
     grpc:Client clientEndpoint;
     grpc:ServiceStub serviceStub;
 }
+
 function <helloWorldStub stub> initStub(grpc:Client clientEndpoint) {
     grpc:ServiceStub navStub = {};
     navStub.initStub(clientEndpoint, "non-blocking", descriptorKey, descriptorMap);
     stub.serviceStub = navStub;
 }
-
 
 function <helloWorldBlockingStub stub> hello (string req) (string, error) {
     var res, err1 = stub.serviceStub.blockingExecute("helloWorld/hello", req);
@@ -53,7 +53,6 @@ function <helloWorldBlockingStub stub> hello (string req) (string, error) {
     return response, null;
 }
 
-
 function <helloWorldStub stub> hello (string req, type listener) (error) {
     var err1 = stub.serviceStub.nonBlockingExecute("helloWorld/hello", req, listener);
     if (err1 != null && err1.message != null) {
@@ -63,13 +62,11 @@ function <helloWorldStub stub> hello (string req, type listener) (error) {
     return null;
 }
 
-
-
-
 public struct helloWorldBlockingClient {
     grpc:Client client;
     helloWorldBlockingStub stub;
 }
+
 public function <helloWorldBlockingClient ep> init(grpc:ClientEndpointConfiguration config) {
     // initialize client endpoint.
     grpc:Client client = {};
@@ -80,6 +77,7 @@ public function <helloWorldBlockingClient ep> init(grpc:ClientEndpointConfigurat
     stub.initStub(client);
     ep.stub = stub;
 }
+
 public function <helloWorldBlockingClient ep> getClient() returns (helloWorldBlockingStub) {
     return ep.stub;
 }
@@ -88,6 +86,7 @@ public struct helloWorldClient {
     grpc:Client client;
     helloWorldStub stub;
 }
+
 public function <helloWorldClient ep> init(grpc:ClientEndpointConfiguration config) {
     // initialize client endpoint.
     grpc:Client client = {};
@@ -98,11 +97,10 @@ public function <helloWorldClient ep> init(grpc:ClientEndpointConfiguration conf
     stub.initStub(client);
     ep.stub = stub;
 }
+
 public function <helloWorldClient ep> getClient() returns (helloWorldStub) {
     return ep.stub;
 }
-
-
 
 const string descriptorKey = "helloWorld.proto";
 map descriptorMap =
