@@ -15,9 +15,7 @@
 // under the License.
 
 import ballerina/io;
-import ballerina/log;
 import ballerina/system;
-import ballerina/internal;
 
 boolean isWindows = system:getEnv("OS") != "";
 string pathSeparator = isWindows ? "\\" : "/";
@@ -426,14 +424,14 @@ function nextSlashIndex(string path, int offset, int end) returns int|Error {
 }
 
 function isLetter(string c) returns boolean {
-    string regEx = "^[a-zA-Z]{1}$";
-    boolean|error letter = internal:matches(c,regEx);
-    if (letter is error) {
-        log:printError("Error while checking input character is string", letter);
+    if (c.length() != 1) {
         return false;
-    } else {
-        return letter;
     }
+    int codePoint = c.getCodePoint(0);
+    if (!(codePoint >= 97 && codePoint <= 122) && !(codePoint >= 65 && codePoint <= 90)) {
+        return false;
+    }
+    return true;
 }
 
 function isUNC(string path) returns boolean|Error {
@@ -463,8 +461,43 @@ function charAt(string input, int index) returns string|Error {
 
 function isSamePath(string base, string target) returns boolean {
     if (isWindows) {
-        return internal:equalsIgnoreCase(base, target);
+        return equalsIgnoreCase(base, target);
     } else {
         return base == target;
     }
 }
+
+function equalsIgnoreCase(string base, string target) returns boolean {
+    if (base.length() != target.length()) {
+        return false;
+    }
+    if (base == target) {
+        return true;
+    }
+    int i = 0;
+    int length = base.length();
+    while (i < length) {
+        string|error c1 = charAt(base, i);
+        string|error c2 = charAt(target, i);
+        if (c1 is error || c2 is error) {
+            return false;
+        } else {
+            i = i + 1;
+            if (c1 == c2) {
+                continue;
+            }
+            // If both characters don't match. try converting both characters to uppercase.
+            // If the results match. continue to next character.
+            string u1 = c1.toUpperAscii();
+            string u2 = c2.toUpperAscii();
+            if (u1 == u2) {
+                continue;
+            }
+            if (u1.toLowerAscii() == u2.toLowerAscii()) {
+                continue;
+            }
+            return false;
+        }
+    }
+    return true;
+ }
