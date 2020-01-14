@@ -37,15 +37,20 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNull;
 
 /**
@@ -345,7 +350,8 @@ public class FileTest {
             BRunUtil.invoke(compileResult, "testCopy", args);
             assertTrue(Files.exists(tempDestPath));
             assertTrue(Files.exists(srcFilePath));
-            assertEquals(tempDestPath.toFile().length(), srcFilePath.toFile().length());
+            String copiedContent = new String(Files.readAllBytes(tempDestPath));
+            assertEquals(copiedContent, originalContent);
 
             // Execute same with replaceExist false
             BValue[] args1 = {new BString(srcModifiedFilePath.toString()), new BString(tempDestPath.toString()),
@@ -391,10 +397,33 @@ public class FileTest {
             BRunUtil.invoke(compileResult, "testCopy", args);
             assertTrue(Files.exists(tempDestPath));
             assertTrue(Files.exists(srcDirPath));
-            assertEquals(tempDestPath.toFile().length(), srcDirPath.toFile().length());
+            assertDirectoryStructure(srcDirPath, tempDestPath);
         } finally {
             FileUtils.deleteDirectory(tempDestPath.toFile());
         }
+    }
+
+    private static void assertDirectoryStructure(Path sourcePath, Path destPath) throws IOException {
+        Files.walkFileTree(sourcePath, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file,
+                                             BasicFileAttributes attrs)
+                    throws IOException {
+                FileVisitResult result = super.visitFile(file, attrs);
+
+                // source relative file
+                Path relativePath = sourcePath.relativize(file);
+                // destination relative file
+                Path destFilePath = destPath.resolve(relativePath);
+
+                byte[] sourceBytes = Files.readAllBytes(destFilePath);
+                byte[] destBytes = Files.readAllBytes(file);
+                if (!Arrays.equals(sourceBytes, destBytes)) {
+                    fail(file + " is not equal to " + destFilePath);
+                }
+                return result;
+            }
+        });
     }
 
     @Test
