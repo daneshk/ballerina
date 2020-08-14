@@ -18,15 +18,17 @@
 package org.ballerinalang.packerina.cmd;
 
 import org.ballerinalang.compiler.CompilerPhase;
+import org.ballerinalang.compiler.JarResolver;
 import org.ballerinalang.jvm.launch.LaunchUtils;
 import org.ballerinalang.jvm.util.BLangConstants;
+import org.ballerinalang.packerina.JarResolverImpl;
 import org.ballerinalang.packerina.TaskExecutor;
 import org.ballerinalang.packerina.buildcontext.BuildContext;
+import org.ballerinalang.packerina.buildcontext.BuildContextField;
 import org.ballerinalang.packerina.task.CleanTargetDirTask;
 import org.ballerinalang.packerina.task.CompileTask;
 import org.ballerinalang.packerina.task.CopyExecutableTask;
-import org.ballerinalang.packerina.task.CopyModuleJarTask;
-import org.ballerinalang.packerina.task.CopyNativeLibTask;
+import org.ballerinalang.packerina.task.CopyObservabilitySymbolsTask;
 import org.ballerinalang.packerina.task.CopyResourcesTask;
 import org.ballerinalang.packerina.task.CreateBaloTask;
 import org.ballerinalang.packerina.task.CreateBirTask;
@@ -35,6 +37,7 @@ import org.ballerinalang.packerina.task.CreateJarTask;
 import org.ballerinalang.packerina.task.CreateLockFileTask;
 import org.ballerinalang.packerina.task.CreateTargetDirTask;
 import org.ballerinalang.packerina.task.PrintExecutablePathTask;
+import org.ballerinalang.packerina.task.ResolveMavenDependenciesTask;
 import org.ballerinalang.packerina.task.RunCompilerPluginTask;
 import org.ballerinalang.packerina.task.RunTestsTask;
 import org.ballerinalang.tool.BLauncherCmd;
@@ -55,13 +58,16 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.ballerinalang.compiler.CompilerOptionName.COMPILER_PHASE;
+import static org.ballerinalang.compiler.CompilerOptionName.DUMP_BIR;
 import static org.ballerinalang.compiler.CompilerOptionName.EXPERIMENTAL_FEATURES_ENABLED;
 import static org.ballerinalang.compiler.CompilerOptionName.LOCK_ENABLED;
+import static org.ballerinalang.compiler.CompilerOptionName.NEW_PARSER_ENABLED;
 import static org.ballerinalang.compiler.CompilerOptionName.OFFLINE;
 import static org.ballerinalang.compiler.CompilerOptionName.PRESERVE_WHITESPACE;
 import static org.ballerinalang.compiler.CompilerOptionName.PROJECT_DIR;
 import static org.ballerinalang.compiler.CompilerOptionName.SKIP_TESTS;
 import static org.ballerinalang.compiler.CompilerOptionName.TEST_ENABLED;
+import static org.ballerinalang.jvm.runtime.RuntimeConstants.SYSTEM_PROP_BAL_DEBUG;
 import static org.ballerinalang.packerina.buildcontext.sourcecontext.SourceType.SINGLE_BAL_FILE;
 import static org.ballerinalang.packerina.cmd.Constants.BUILD_COMMAND;
 
@@ -73,7 +79,7 @@ import static org.ballerinalang.packerina.cmd.Constants.BUILD_COMMAND;
 @CommandLine.Command(name = BUILD_COMMAND, description = "Ballerina build - Build Ballerina module(s) and generate " +
                                                          "executable output.")
 public class BuildCommand implements BLauncherCmd {
-    
+
     private final PrintStream outStream;
     private final PrintStream errStream;
     private Path sourceRootPath;
@@ -96,7 +102,7 @@ public class BuildCommand implements BLauncherCmd {
         this.exitWhenFinish = exitWhenFinish;
         this.skipCopyLibsFromDist = skipCopyLibsFromDist;
     }
-    
+
     public BuildCommand(Path userDir, PrintStream outStream, PrintStream errStream, boolean exitWhenFinish,
                         boolean skipCopyLibsFromDist, Path executableOutputDir) {
         this.sourceRootPath = userDir;
@@ -106,18 +112,18 @@ public class BuildCommand implements BLauncherCmd {
         this.skipCopyLibsFromDist = skipCopyLibsFromDist;
         this.output = executableOutputDir.toString();
     }
-    
+
     @CommandLine.Option(names = {"--sourceroot"},
                         description = "Path to the directory containing the source files and modules")
     private String sourceRoot;
-    
+
     @CommandLine.Option(names = {"--compile", "-c"}, description = "Compile the source without generating " +
                                                                    "executable(s).")
     private boolean compile;
-    
+
     @CommandLine.Option(names = {"--all", "-a"}, description = "Build or compile all the modules of the project.")
     private boolean buildAll;
-    
+
     @CommandLine.Option(names = {"--output", "-o"}, description = "Write the output to the given file. The provided " +
                                                                   "output file name may or may not contain the " +
                                                                   "'.jar' extension.")
@@ -155,6 +161,12 @@ public class BuildCommand implements BLauncherCmd {
     @CommandLine.Option(names = "--experimental", description = "Enable experimental language features.")
     private boolean experimentalFlag;
 
+    @CommandLine.Option(names = "--debug", description = "run tests in remote debugging mode")
+    private String debugPort;
+
+    @CommandLine.Option(names = "--old-parser", description = "Enable new parser.", hidden = true)
+    private boolean useOldParser;
+
     private static final String buildCmd = "ballerina build [-o <output>] [--sourceroot] [--offline] [--skip-tests]\n" +
             "                    [--skip-lock] {<ballerina-file | module-name> | -a | --all} [--] [(--key=value)...]";
 
@@ -163,6 +175,10 @@ public class BuildCommand implements BLauncherCmd {
 
     @CommandLine.Option(names = "--code-coverage", description = "enable code coverage")
     private boolean coverage;
+
+    @CommandLine.Option(names = "--observability-included", description = "package observability in the executable " +
+            "JAR file(s).")
+    private boolean observabilityIncluded;
 
     public void execute() {
         if (this.helpFlag) {
@@ -180,6 +196,11 @@ public class BuildCommand implements BLauncherCmd {
             args = argList.subList(1, argList.size()).toArray(new String[0]);
         }
 
+        // Sets the debug port as a system property, which will be used when setting up debug args before running tests.
+        if (!this.skipTests && this.debugPort != null) {
+            System.setProperty(SYSTEM_PROP_BAL_DEBUG, this.debugPort);
+        }
+
         String[] userArgs = LaunchUtils.getUserArgs(args, new HashMap<>());
         // check if there are too many arguments.
         if (userArgs.length > 0) {
@@ -187,7 +208,7 @@ public class BuildCommand implements BLauncherCmd {
             CommandUtil.exitError(this.exitWhenFinish);
             return;
         }
-    
+
         // If -a or --all is not given, then it is mandatory to give a module name or a Ballerina file as the arg.
         if (!this.buildAll && (this.argList == null || this.argList.size() == 0)) {
             CommandUtil.printError(this.errStream,
@@ -198,13 +219,13 @@ public class BuildCommand implements BLauncherCmd {
             CommandUtil.exitError(this.exitWhenFinish);
             return;
         }
-        
+
         // Validate and decide the source root and the full path of the source.
         this.sourceRootPath = null != this.sourceRoot ?
                 Paths.get(this.sourceRoot).toAbsolutePath() : this.sourceRootPath;
         Path sourcePath = null;
         Path targetPath;
-        
+
         // When -a or --all is provided, check if the command is executed within a Ballerina project. Update source
         // root path if the command is executed inside a project.
         if (this.buildAll) {
@@ -218,7 +239,7 @@ public class BuildCommand implements BLauncherCmd {
                 CommandUtil.exitError(this.exitWhenFinish);
                 return;
             }
-        
+
             //// Validate and set the path of the source root.
             if (!ProjectDirs.isProject(this.sourceRootPath)) {
                 Path findRoot = ProjectDirs.findProjectRoot(this.sourceRootPath);
@@ -231,10 +252,10 @@ public class BuildCommand implements BLauncherCmd {
                     CommandUtil.exitError(this.exitWhenFinish);
                     return;
                 }
-                
+
                 this.sourceRootPath = findRoot;
             }
-        
+
             targetPath = this.sourceRootPath.resolve(ProjectDirConstants.TARGET_DIR_NAME);
 
         } else if (this.argList.get(0).endsWith(BLangConstants.BLANG_SRC_FILE_SUFFIX)) {
@@ -267,7 +288,7 @@ public class BuildCommand implements BLauncherCmd {
                     CommandUtil.exitError(this.exitWhenFinish);
                     return;
                 }
-                
+
                 //// check if the given file is a regular file and not a symlink.
                 if (!Files.isRegularFile(sourcePath)) {
                     CommandUtil.printError(this.errStream,
@@ -278,7 +299,7 @@ public class BuildCommand implements BLauncherCmd {
                     CommandUtil.exitError(this.exitWhenFinish);
                     return;
                 }
-                
+
                 try {
                     targetPath = Files.createTempDirectory("ballerina-build-" + System.nanoTime());
                 } catch (IOException e) {
@@ -302,7 +323,7 @@ public class BuildCommand implements BLauncherCmd {
                 CommandUtil.exitError(this.exitWhenFinish);
                 return;
             }
-            
+
             //// check if command executed from project root.
             if (!RepoUtils.isBallerinaProject(this.sourceRootPath)) {
                 CommandUtil.printError(this.errStream,
@@ -312,7 +333,7 @@ public class BuildCommand implements BLauncherCmd {
                 CommandUtil.exitError(this.exitWhenFinish);
                 return;
             }
-            
+
             //// check if module name given is not absolute.
             if (Paths.get(argList.get(0)).isAbsolute()) {
                 CommandUtil.printError(this.errStream,
@@ -323,16 +344,16 @@ public class BuildCommand implements BLauncherCmd {
                 CommandUtil.exitError(this.exitWhenFinish);
                 return;
             }
-    
+
             String moduleName = argList.get(0);
-    
+
             //// remove end forward slash
             if (moduleName.endsWith("/")) {
                 moduleName = moduleName.substring(0, moduleName.length() - 1);
             }
-            
+
             sourcePath = Paths.get(moduleName);
-            
+
             //// check if module exists.
             if (Files.notExists(this.sourceRootPath.resolve(ProjectDirConstants.SOURCE_DIR_NAME).resolve(sourcePath))) {
                 CommandUtil.printError(this.errStream,
@@ -342,7 +363,7 @@ public class BuildCommand implements BLauncherCmd {
                 CommandUtil.exitError(this.exitWhenFinish);
                 return;
             }
-    
+
             targetPath = this.sourceRootPath.resolve(ProjectDirConstants.TARGET_DIR_NAME);
         } else {
             CommandUtil.printError(this.errStream,
@@ -355,28 +376,34 @@ public class BuildCommand implements BLauncherCmd {
             CommandUtil.exitError(this.exitWhenFinish);
             return;
         }
-        
+
         // normalize paths
         this.sourceRootPath = this.sourceRootPath.normalize();
         sourcePath = sourcePath == null ? null : sourcePath.normalize();
         targetPath = targetPath.normalize();
-        
+
         // create compiler context
         CompilerContext compilerContext = new CompilerContext();
         CompilerOptions options = CompilerOptions.getInstance(compilerContext);
         options.put(PROJECT_DIR, this.sourceRootPath.toString());
+        options.put(DUMP_BIR, Boolean.toString(dumpBIR));
         options.put(OFFLINE, Boolean.toString(this.offline));
-        options.put(COMPILER_PHASE, CompilerPhase.BIR_GEN.toString());
+        options.put(COMPILER_PHASE, CompilerPhase.CODE_GEN.toString());
         options.put(LOCK_ENABLED, Boolean.toString(!this.skipLock));
         options.put(SKIP_TESTS, Boolean.toString(this.skipTests));
         options.put(TEST_ENABLED, Boolean.toString(!this.skipTests));
         options.put(EXPERIMENTAL_FEATURES_ENABLED, Boolean.toString(this.experimentalFlag));
         options.put(PRESERVE_WHITESPACE, "true");
+        options.put(NEW_PARSER_ENABLED, Boolean.toString(!this.useOldParser));
+
         // create builder context
         BuildContext buildContext = new BuildContext(this.sourceRootPath, targetPath, sourcePath, compilerContext);
+        JarResolver jarResolver = JarResolverImpl.getInstance(buildContext, skipCopyLibsFromDist,
+                observabilityIncluded);
+        buildContext.put(BuildContextField.JAR_RESOLVER, jarResolver);
         buildContext.setOut(outStream);
         buildContext.setErr(errStream);
-    
+
         boolean isSingleFileBuild = buildContext.getSourceType().equals(SINGLE_BAL_FILE);
         // output path is the current directory if -o flag is not given.
         Path outputPath = null == this.output ? Paths.get(System.getProperty("user.dir")) : Paths.get(this.output);
@@ -384,16 +411,15 @@ public class BuildCommand implements BLauncherCmd {
         TaskExecutor taskExecutor = new TaskExecutor.TaskBuilder()
                 .addTask(new CleanTargetDirTask(), isSingleFileBuild)   // clean the target directory(projects only)
                 .addTask(new CreateTargetDirTask()) // create target directory
+                .addTask(new ResolveMavenDependenciesTask()) // resolve maven dependencies in Ballerina.toml
                 .addTask(new CompileTask()) // compile the modules
+                .addTask(new CreateBirTask())   // create the bir
                 .addTask(new CreateLockFileTask(), this.skipLock || isSingleFileBuild)  // create a lock file if
                                                             // the given skipLock flag does not exist(projects only)
                 .addTask(new CreateBaloTask(), isSingleFileBuild)   // create the BALOs for modules (projects only)
-                .addTask(new CreateBirTask())   // create the bir
-                .addTask(new CopyNativeLibTask(skipCopyLibsFromDist))    // copy the native libs(projects only)
-                // create the jar.
-                .addTask(new CreateJarTask(this.dumpBIR, skipCopyLibsFromDist))
+                .addTask(new CreateJarTask())   // create the jar
                 .addTask(new CopyResourcesTask(), isSingleFileBuild)
-                .addTask(new CopyModuleJarTask(skipCopyLibsFromDist, skipTests))
+                .addTask(new CopyObservabilitySymbolsTask(), isSingleFileBuild)
                 .addTask(new RunTestsTask(testReport, coverage, args), this.skipTests || isSingleFileBuild) // run tests
                                                                                                 // (projects only)
                 .addTask(new CreateExecutableTask(), this.compile)  // create the executable.jar
@@ -403,7 +429,7 @@ public class BuildCommand implements BLauncherCmd {
                 .addTask(new RunCompilerPluginTask(), this.compile) // run compiler plugins
                 .addTask(new CleanTargetDirTask(), !isSingleFileBuild)  // clean the target dir(single bals only)
                 .build();
-        
+
         taskExecutor.executeTasks(buildContext);
         if (this.exitWhenFinish) {
             Runtime.getRuntime().exit(0);

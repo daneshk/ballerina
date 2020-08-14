@@ -32,7 +32,7 @@ public type LoadBalanceClient client object {
     # Load Balancer adds an additional layer to the HTTP client to make network interactions more resilient.
     #
     # + loadBalanceClientConfig - The configurations for the load balance client endpoint
-    public function __init(LoadBalanceClientConfiguration loadBalanceClientConfig) {
+    public function init(LoadBalanceClientConfiguration loadBalanceClientConfig) {
         self.loadBalanceClientConfig = loadBalanceClientConfig;
         self.failover = loadBalanceClientConfig.failover;
         var lbClients = createLoadBalanceHttpClientArray(loadBalanceClientConfig);
@@ -154,51 +154,43 @@ public type LoadBalanceClient client object {
     # + httpVerb - The HTTP verb value
     # + path - The resource path
     # + message - An HTTP outbound request message or any payload of type `string`, `xml`, `json`, `byte[]`,
-    #             `io:ReadableByteChannel` or `mime:Entity[]`
-    # + return - An `HttpFuture` that represents an asynchronous service invocation, or an `http:ClientError` if the submission
+    #             `io:ReadableByteChannel`, or `mime:Entity[]`
+    # + return - An `http:HttpFuture` that represents an asynchronous service invocation or else an `http:ClientError` if the submission
     #            fails
     public remote function submit(string httpVerb, string path, RequestMessage message) returns HttpFuture|ClientError {
-        string errorMessage = "Load balancer client not supported for submit action";
-        UnsupportedActionError err = error(UNSUPPORTED_ACTION, message = errorMessage);
-        return err;
+        return UnsupportedActionError("Load balancer client not supported for submit action");
     }
 
     # The getResponse implementation of the LoadBalancer Connector.
     #
-    # + httpFuture - The `HttpFuture` related to a previous asynchronous invocation
-    # + return - An HTTP response message, or an `http:ClientError` if the invocation fails
+    # + httpFuture - The `http:HttpFuture` related to a previous asynchronous invocation
+    # + return - An `http:Response` message or else an `http:ClientError` if the invocation fails
     public remote function getResponse(HttpFuture httpFuture) returns Response|ClientError {
-        string errorMessage = "Load balancer client not supported for getResponse action";
-        UnsupportedActionError err = error(UNSUPPORTED_ACTION, message = errorMessage);
-        return err;
+        return UnsupportedActionError("Load balancer client not supported for getResponse action");
     }
 
     # The hasPromise implementation of the LoadBalancer Connector.
     #
-    # + httpFuture - The `HttpFuture` relates to a previous asynchronous invocation
-    # + return - A `boolean` that represents whether a `PushPromise` exists
+    # + httpFuture - The `http:HttpFuture` related to a previous asynchronous invocation
+    # + return - A `boolean`, which represents whether an `http:PushPromise` exists
     public remote function hasPromise(HttpFuture httpFuture) returns boolean {
         return false;
     }
 
     # The getNextPromise implementation of the LoadBalancer Connector.
     #
-    # + httpFuture - The `HttpFuture` relates to a previous asynchronous invocation
-    # + return - An HTTP Push Promise message, or an `http:ClientError` if the invocation fails
+    # + httpFuture - The `http:HttpFuture` related to a previous asynchronous invocation
+    # + return - An `http:PushPromise` message or else an `http:ClientError` if the invocation fails
     public remote function getNextPromise(HttpFuture httpFuture) returns PushPromise|ClientError {
-        string errorMessage = "Load balancer client not supported for getNextPromise action";
-        UnsupportedActionError err = error(UNSUPPORTED_ACTION, message = errorMessage);
-        return err;
+        return UnsupportedActionError("Load balancer client not supported for getNextPromise action");
     }
 
     # The getPromisedResponse implementation of the LoadBalancer Connector.
     #
-    # + promise - The related `PushPromise`
-    # + return - A promised HTTP `Response` message, or an `http:ClientError` if the invocation fails
+    # + promise - The related `http:PushPromise`
+    # + return - A promised `http:Response` message or else an `http:ClientError` if the invocation fails
     public remote function getPromisedResponse(PushPromise promise) returns Response|ClientError {
-        string errorMessage = "Load balancer client not supported for getPromisedResponse action";
-        UnsupportedActionError err = error(UNSUPPORTED_ACTION, message = errorMessage);
-        return err;
+        return UnsupportedActionError("Load balancer client not supported for getPromisedResponse action");
     }
 
     # The rejectPromise implementation of the LoadBalancer Connector.
@@ -207,18 +199,15 @@ public type LoadBalanceClient client object {
     public remote function rejectPromise(PushPromise promise) {}
 };
 
-# Represents an error occurred in an remote function of the Load Balance connector.
+# Represents the error attributes in addition to the message and the cause of the `LoadBalanceActionError`.
 #
 # + httpActionErr - Array of errors occurred at each endpoint
-# + message - An explanation of the error
-# + cause - The original error which resulted in a `LoadBalanceActionError`
 public type LoadBalanceActionErrorData record {|
     error?[] httpActionErr = [];
-    string message?;
-    error cause?;
 |};
 
-public type LoadBalanceActionError error<string, LoadBalanceActionErrorData>;
+# Represents an error occurred in an remote function of the Load Balance connector.
+public type LoadBalanceActionError distinct error<LoadBalanceActionErrorData>;
 
 // Performs execute action of the Load Balance connector. extract the corresponding http integer value representation
 // of the http verb and invokes the perform action method.
@@ -228,9 +217,7 @@ function performLoadBalanceExecuteAction(LoadBalanceClient lb, string path, Requ
     if (connectorAction != HTTP_NONE) {
         return performLoadBalanceAction(lb, path, request, connectorAction);
     } else {
-        string message = "Load balancer client not supported for http method: " + httpVerb;
-        UnsupportedActionError err = error(UNSUPPORTED_ACTION, message = message);
-        return err;
+        return UnsupportedActionError("Load balancer client not supported for http method: " + httpVerb);
     }
 }
 
@@ -239,7 +226,7 @@ function performLoadBalanceAction(LoadBalanceClient lb, string path, Request req
              returns Response|ClientError {
     int loadBalanceTermination = 0; // Tracks at which point failover within the load balancing should be terminated.
     //TODO: workaround to initialize a type inside a function. Change this once fix is available.
-    LoadBalanceActionErrorData loadBalanceActionErrorData = {message: "", httpActionErr:[]};
+    LoadBalanceActionErrorData loadBalanceActionErrorData = {httpActionErr:[]};
     int lbErrorIndex = 0;
     Request loadBalancerInRequest = request;
     mime:Entity requestEntity = new;
@@ -285,38 +272,37 @@ function performLoadBalanceAction(LoadBalanceClient lb, string path, Request req
 function populateGenericLoadBalanceActionError(LoadBalanceActionErrorData loadBalanceActionErrorData)
                                                     returns ClientError {
     int nErrs = loadBalanceActionErrorData.httpActionErr.length();
-    error? er = loadBalanceActionErrorData.httpActionErr[nErrs - 1];
-    error actError;
-    if (er is error) {
-        actError = er;
-    } else {
-        error err = error("Unexpected nil");
-        panic err;
+    error? lastError = loadBalanceActionErrorData.httpActionErr[nErrs - 1];
+    if (lastError is ()) {
+        panic error("Unexpected nil");
     }
-    string lastErrorMessage = <string> actError.detail()?.message;
+
+    error actError = <error> lastError;
+    string lastErrorMessage = actError.message();
     string message = "All the load balance endpoints failed. Last error was: " + lastErrorMessage;
-    AllLoadBalanceEndpointsFailedError err = error(ALL_LOAD_BALANCE_ENDPOINTS_FAILED,
-                                                    message = message,
-                                                    httpActionError = loadBalanceActionErrorData.httpActionErr);
-    return err;
+    return AllLoadBalanceEndpointsFailedError(message, httpActionError = loadBalanceActionErrorData.httpActionErr);
 }
 
 
-# The configurations related to the load balance client endpoint.
+# The configurations related to the load balance client endpoint. Following fields are inherited from the other
+# configuration records in addition to the load balance client specific configs.
 #
-# httpVersion - Copied from CommonClientConfiguration
-# http1Settings - Copied from CommonClientConfiguration
-# http2Settings - Copied from CommonClientConfiguration
-# timeoutInMillis - Copied from CommonClientConfiguration
-# forwarded - Copied from CommonClientConfiguration
-# followRedirects - Copied from CommonClientConfiguration
-# poolConfig - Copied from CommonClientConfiguration
-# cache - Copied from CommonClientConfiguration
-# compression - Copied from CommonClientConfiguration
-# auth - Copied from CommonClientConfiguration
-# circuitBreaker - Copied from CommonClientConfiguration
-# retryConfig - Copied from CommonClientConfiguration
-# cookieConfig - Copied from CommonClientConfiguration
+# |                                                         |
+# |:------------------------------------------------------- |
+# | httpVersion - Copied from CommonClientConfiguration     |
+# | http1Settings - Copied from CommonClientConfiguration   |
+# | http2Settings - Copied from CommonClientConfiguration   |
+# | timeoutInMillis - Copied from CommonClientConfiguration |
+# | forwarded - Copied from CommonClientConfiguration       |
+# | followRedirects - Copied from CommonClientConfiguration |
+# | poolConfig - Copied from CommonClientConfiguration      |
+# | cache - Copied from CommonClientConfiguration           |
+# | compression - Copied from CommonClientConfiguration     |
+# | auth - Copied from CommonClientConfiguration            |
+# | circuitBreaker - Copied from CommonClientConfiguration  |
+# | retryConfig - Copied from CommonClientConfiguration     |
+# | cookieConfig - Copied from CommonClientConfiguration    |
+#
 # + targets - The upstream HTTP endpoints among which the incoming HTTP traffic load should be distributed
 # + lbRule - LoadBalancing rule
 # + failover - Configuration for load balancer whether to fail over in case of a failure

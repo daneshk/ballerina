@@ -22,15 +22,18 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.ballerinalang.jvm.BRuntime;
+import org.ballerinalang.jvm.StringUtils;
 import org.ballerinalang.jvm.types.AttachedFunction;
 import org.ballerinalang.jvm.types.BArrayType;
 import org.ballerinalang.jvm.types.BPackage;
 import org.ballerinalang.jvm.types.BRecordType;
+import org.ballerinalang.jvm.types.BStreamType;
 import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.TypeFlags;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.net.grpc.exception.GrpcServerException;
 import org.ballerinalang.net.grpc.listener.ServerCallHandler;
 import org.ballerinalang.net.grpc.listener.StreamingServerCallHandler;
@@ -38,11 +41,8 @@ import org.ballerinalang.net.grpc.listener.UnaryServerCallHandler;
 import org.ballerinalang.net.grpc.proto.definition.StandardDescriptorBuilder;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.ballerinalang.net.grpc.GrpcConstants.EMPTY_DATATYPE_NAME;
-import static org.ballerinalang.net.grpc.GrpcConstants.ON_MESSAGE_RESOURCE;
 import static org.ballerinalang.net.grpc.GrpcConstants.PROTOCOL_PACKAGE_GRPC;
 import static org.ballerinalang.net.grpc.GrpcConstants.WRAPPER_BOOL_MESSAGE;
 import static org.ballerinalang.net.grpc.GrpcConstants.WRAPPER_BYTES_MESSAGE;
@@ -54,6 +54,7 @@ import static org.ballerinalang.net.grpc.GrpcConstants.WRAPPER_STRING_MESSAGE;
 import static org.ballerinalang.net.grpc.GrpcConstants.WRAPPER_UINT32_MESSAGE;
 import static org.ballerinalang.net.grpc.GrpcConstants.WRAPPER_UINT64_MESSAGE;
 import static org.ballerinalang.net.grpc.MessageUtils.setNestedMessages;
+import static org.ballerinalang.net.grpc.proto.ServiceProtoConstants.ANN_SERVICE_CONFIG_FQN;
 
 /**
  * This is the gRPC server implementation for registering service and start/stop server.
@@ -78,12 +79,12 @@ public class ServicesBuilderUtils {
     }
 
     private static String getServiceName(ObjectValue service) {
-        Object serviceConfigData = service.getType().getAnnotation("ballerina/grpc:ServiceConfig");
+        Object serviceConfigData = service.getType().getAnnotation(StringUtils.fromString(ANN_SERVICE_CONFIG_FQN));
         if (serviceConfigData != null) {
             MapValue configMap = (MapValue) serviceConfigData;
-            String providedName = configMap.getStringValue("name");
-            if (providedName != null && !providedName.isEmpty()) {
-                return providedName;
+            BString providedName = configMap.getStringValue(StringUtils.fromString("name"));
+            if (providedName != null && !providedName.getValue().isEmpty()) {
+                return providedName.getValue();
             }
         }
         String serviceTypeName = service.getType().getName(); // typeName format: <name>$$<type>$$<version>
@@ -116,7 +117,6 @@ public class ServicesBuilderUtils {
             MethodDescriptor.MethodType methodType;
             ServerCallHandler serverCallHandler;
             MethodDescriptor.Marshaller reqMarshaller = null;
-            Map<String, ServiceResource> resourceMap = new HashMap<>();
             ServiceResource mappedResource = null;
 
             for (AttachedFunction function : service.getType().getAttachedFunctions()) {
@@ -124,19 +124,16 @@ public class ServicesBuilderUtils {
                     mappedResource = new ServiceResource(runtime, service, function);
                     reqMarshaller = ProtoUtils.marshaller(new MessageParser(requestDescriptor.getName(),
                             getResourceInputParameterType(function)));
-                } else if (ON_MESSAGE_RESOURCE.equals(function.getName())) {
-                    reqMarshaller = ProtoUtils.marshaller(new MessageParser(requestDescriptor.getName(),
-                            getResourceInputParameterType(function)));
                 }
-                resourceMap.put(function.getName(), new ServiceResource(runtime, service, function));
             }
-
             if (methodDescriptor.toProto().getServerStreaming() && methodDescriptor.toProto().getClientStreaming()) {
                 methodType = MethodDescriptor.MethodType.BIDI_STREAMING;
-                serverCallHandler = new StreamingServerCallHandler(methodDescriptor, resourceMap);
+                serverCallHandler = new StreamingServerCallHandler(methodDescriptor, mappedResource,
+                        getBallerinaValueType(service.getType().getPackage(), requestDescriptor.getName()));
             } else if (methodDescriptor.toProto().getClientStreaming()) {
                 methodType = MethodDescriptor.MethodType.CLIENT_STREAMING;
-                serverCallHandler = new StreamingServerCallHandler(methodDescriptor, resourceMap);
+                serverCallHandler = new StreamingServerCallHandler(methodDescriptor, mappedResource,
+                        getBallerinaValueType(service.getType().getPackage(), requestDescriptor.getName()));
             } else if (methodDescriptor.toProto().getServerStreaming()) {
                 methodType = MethodDescriptor.MethodType.SERVER_STREAMING;
                 serverCallHandler = new UnaryServerCallHandler(methodDescriptor, mappedResource);
@@ -182,9 +179,10 @@ public class ServicesBuilderUtils {
         }
 
         try {
-            MapValue<String, Object> annotationMap = (MapValue) annotationData;
-            String descriptorData = annotationMap.getStringValue("descriptor");
-            MapValue<String, String> descMap = (MapValue<String, String>) annotationMap.getMapValue("descMap");
+            MapValue<BString, Object> annotationMap = (MapValue) annotationData;
+            BString descriptorData = annotationMap.getStringValue(StringUtils.fromString("descriptor"));
+            MapValue<BString, BString> descMap = (MapValue<BString, BString>) annotationMap.getMapValue(
+                StringUtils.fromString("descMap"));
             return getFileDescriptor(descriptorData, descMap);
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             throw new GrpcServerException("Error while reading the service proto descriptor. check the service " +
@@ -192,9 +190,10 @@ public class ServicesBuilderUtils {
         }
     }
 
-    private static Descriptors.FileDescriptor getFileDescriptor(String descriptorData, MapValue<String, String> descMap)
-            throws InvalidProtocolBufferException, Descriptors.DescriptorValidationException, GrpcServerException {
-        byte[] descriptor = hexStringToByteArray(descriptorData);
+    private static Descriptors.FileDescriptor getFileDescriptor(
+        BString descriptorData, MapValue<BString, BString> descMap) 
+        throws InvalidProtocolBufferException, Descriptors.DescriptorValidationException, GrpcServerException {
+        byte[] descriptor = hexStringToByteArray(descriptorData.getValue());
         if (descriptor.length == 0) {
             throw new GrpcServerException("Error while reading the service proto descriptor. input descriptor string " +
                     "is null.");
@@ -210,8 +209,8 @@ public class ServicesBuilderUtils {
         int i = 0;
         for (ByteString dependency : descriptorProto.getDependencyList().asByteStringList()) {
             String dependencyKey = dependency.toStringUtf8();
-            if (descMap.containsKey(dependencyKey)) {
-                fileDescriptors[i++] = getFileDescriptor(descMap.get(dependencyKey), descMap);
+            if (descMap.containsKey(StringUtils.fromString(dependencyKey))) {
+                fileDescriptors[i++] = getFileDescriptor(descMap.get(StringUtils.fromString(dependencyKey)), descMap);
             } else if (descMap.size() == 0) {
                 Descriptors.FileDescriptor dependentDescriptor = StandardDescriptorBuilder.getFileDescriptor
                         (dependencyKey);
@@ -281,6 +280,8 @@ public class ServicesBuilderUtils {
             if (inputType != null && "Headers".equals(inputType.getName()) &&
                     inputType.getPackage() != null && PROTOCOL_PACKAGE_GRPC.equals(inputType.getPackage().getName())) {
                 return BTypes.typeNull;
+            } else if (inputType instanceof BStreamType) {
+                return ((BStreamType) inputType).getConstrainedType();
             } else {
                 return inputParams[1];
             }

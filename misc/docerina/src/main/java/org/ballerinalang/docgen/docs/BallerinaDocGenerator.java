@@ -24,6 +24,7 @@ import org.apache.commons.io.FileUtils;
 import org.ballerinalang.docgen.Generator;
 import org.ballerinalang.docgen.Writer;
 import org.ballerinalang.docgen.docs.utils.BallerinaDocUtils;
+import org.ballerinalang.docgen.docs.utils.PathToJson;
 import org.ballerinalang.docgen.generator.model.AnnotationsPageContext;
 import org.ballerinalang.docgen.generator.model.Client;
 import org.ballerinalang.docgen.generator.model.ClientPageContext;
@@ -42,6 +43,9 @@ import org.ballerinalang.docgen.generator.model.Record;
 import org.ballerinalang.docgen.generator.model.RecordPageContext;
 import org.ballerinalang.docgen.generator.model.TypesPageContext;
 import org.ballerinalang.docgen.model.ModuleDoc;
+import org.ballerinalang.docgen.model.search.ConstructSearchJson;
+import org.ballerinalang.docgen.model.search.ModuleSearchJson;
+import org.ballerinalang.docgen.model.search.SearchJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
@@ -78,8 +82,13 @@ public class BallerinaDocGenerator {
     private static final String MODULE_CONTENT_FILE = "Module.md";
     private static final Path BAL_BUILTIN = Paths.get("ballerina", "builtin");
     private static final String HTML = ".html";
+    private static final String DOC_JSON = "api-doc-data.json";
     private static final String JSON = ".json";
-    private static Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+    private static final String MODULE_SEARCH = "search";
+    private static final String SEARCH_DATA = "search-data.js";
+    private static final String SEARCH_DIR = "doc-search";
+    private static Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathToJson())
+            .excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
 
     /**
      * API to merge multiple api docs.
@@ -116,11 +125,13 @@ public class BallerinaDocGenerator {
                 }
             }
         }
+        mergeSearchJsons(apiDocsRoot);
         Project project = new Project();
         project.modules = moduleList;
         String projectTemplateName = System.getProperty(BallerinaDocConstants.PROJECT_TEMPLATE_NAME_KEY, "index");
         String indexHtmlPath = apiDocsRoot + File.separator  + projectTemplateName + HTML;
-        ProjectPageContext projectPageContext = new ProjectPageContext(project, "API Documentation", "");
+        ProjectPageContext projectPageContext = new ProjectPageContext(project, "API Documentation", "",
+                false);
         // Generate index.html for the project
         try {
             Writer.writeHtmlDocument(projectPageContext, projectTemplateName, indexHtmlPath);
@@ -130,24 +141,51 @@ public class BallerinaDocGenerator {
         }
     }
 
-    public static void writeAPIDocsForModules(Map<String, ModuleDoc> docsMap, String output) {
+    public static void writeAPIDocsToJSON(Map<String, ModuleDoc> docsMap, String output) {
         // Sort modules by module path
         List<ModuleDoc> moduleDocList = new ArrayList<>(docsMap.values());
         moduleDocList.sort(Comparator.comparing(pkg -> pkg.bLangPackage.packageID.toString()));
 
-        // Module level doc resources
-        Map<String, List<Path>> resources = new HashMap<>();
+        // Generate project model
+        Project project = getDocsGenModel(moduleDocList);
+        File jsonFile = new File(output + File.separator + DOC_JSON);
+        try (java.io.Writer writer = new OutputStreamWriter(new FileOutputStream(jsonFile), StandardCharsets.UTF_8)) {
+            String json = gson.toJson(project);
+            writer.write(new String(json.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            out.println(String.format("docerina: failed to create the " + DOC_JSON + ". Cause: %s", e.getMessage()));
+            log.error("Failed to create " + DOC_JSON + " file.", e);
+        }
+    }
+
+    public static void writeAPIDocsForModulesFromJson(Path jsonpath, String output, boolean excludeIndex) {
+        if (jsonpath.toFile().exists()) {
+            try (BufferedReader br = Files.newBufferedReader(jsonpath, StandardCharsets.UTF_8)) {
+                Project project = gson.fromJson(br, Project.class);
+                writeAPIDocs(project, output, excludeIndex);
+            } catch (IOException e) {
+                String errorMsg = String.format("API documentation generation failed. Cause: %s",
+                        e.getMessage());
+                out.println(errorMsg);
+                log.error(errorMsg, e);
+                return;
+            }
+        }
+    }
+
+    public static void writeAPIDocsForModules(Map<String, ModuleDoc> docsMap, String output, boolean excludeIndex) {
+        // Sort modules by module path
+        List<ModuleDoc> moduleDocList = new ArrayList<>(docsMap.values());
+        moduleDocList.sort(Comparator.comparing(pkg -> pkg.bLangPackage.packageID.toString()));
 
         // Generate project model
-        Project project = new Project();
-        project.isSingleFile = moduleDocList.size() == 1 &&
-                moduleDocList.get(0).bLangPackage.packageID.name.value.equals(".");
-        if (project.isSingleFile) {
-            project.sourceFileName = moduleDocList.get(0).bLangPackage.packageID.sourceFileName.value;
+        Project project = getDocsGenModel(moduleDocList);
+        if (!project.modules.isEmpty()) {
+            writeAPIDocs(project, output, excludeIndex);
         }
-        project.name = "";
-        project.description = "";
+    }
 
+    public static void writeAPIDocs(Project project, String output, boolean excludeIndex) {
         String moduleTemplateName = System.getProperty(BallerinaDocConstants.MODULE_TEMPLATE_NAME_KEY, "module");
         String recordTemplateName = System.getProperty(BallerinaDocConstants.RECORD_TEMPLATE_NAME_KEY, "record");
         String objectTemplateName = System.getProperty(BallerinaDocConstants.OBJECT_TEMPLATE_NAME_KEY, "object");
@@ -165,43 +203,30 @@ public class BallerinaDocGenerator {
 
         String rootPathModuleLevel = project.isSingleFile ? "./" : "../";
         String rootPathConstructLevel = project.isSingleFile ? "../" : "../../";
-        project.modules = new ArrayList<>();
 
-        // Generate module models
-        for (ModuleDoc moduleDoc : moduleDocList) {
-            Module module = new Module();
-            module.id = moduleDoc.bLangPackage.packageID.name.toString();
-            module.orgName = moduleDoc.bLangPackage.packageID.orgName.toString();
-            String moduleVersion = moduleDoc.bLangPackage.packageID.version.toString();
-            // get version from system property if not found in bLangPackage
-            module.version = moduleVersion.equals("")
-                    ? System.getProperty(BallerinaDocConstants.VERSION)
-                    : moduleVersion;
-            module.summary = moduleDoc.summary;
-            module.description = moduleDoc.description;
-
-            // populate module constructs
-            sortModuleConstructs(moduleDoc.bLangPackage);
-            Generator.generateModuleConstructs(module, moduleDoc.bLangPackage);
-
-            // collect module's doc resources
-            resources.put(module.id, moduleDoc.resources);
-
-            project.modules.add(module);
+        // Generate module pages
+        if (project.modules == null) {
+            String errMessage =
+                    "docerina: API documentation generation failed. Couldn't create the [output directory] " + output;
+            out.println(errMessage);
+            log.error(errMessage);
+            return;
+        }
+        for (Module module : project.modules) {
+            String modDir = output + File.separator + module.id;
             try {
                 if (BallerinaDocUtils.isDebugEnabled()) {
                     out.println("docerina: starting to generate docs for module: " + module.id);
                 }
 
                 // Create module directory
-                String modDir = output + File.separator + module.id;
                 Files.createDirectories(Paths.get(modDir));
 
                 // Create module index page
                 ModulePageContext modulePageContext = new ModulePageContext(module, project,
                         rootPathModuleLevel,
                         "API Docs - " + (project.isSingleFile ? project.sourceFileName
-                                : module.orgName + "/" + module.id));
+                                : module.orgName + "/" + module.id), excludeIndex);
                 String modIndexPath = modDir + File.separator + "index" + HTML;
                 Writer.writeHtmlDocument(modulePageContext, moduleTemplateName, modIndexPath);
 
@@ -211,7 +236,7 @@ public class BallerinaDocGenerator {
                     Files.createDirectories(Paths.get(recordsDir));
                     for (Record record : module.records) {
                         RecordPageContext recordPageContext = new RecordPageContext(record, module, project,
-                                rootPathConstructLevel, "API Docs - Record : " + record.name);
+                                rootPathConstructLevel, "API Docs - Record : " + record.name, excludeIndex);
                         String recordFilePath = recordsDir + File.separator + record.name + HTML;
                         Writer.writeHtmlDocument(recordPageContext, recordTemplateName, recordFilePath);
                     }
@@ -223,7 +248,7 @@ public class BallerinaDocGenerator {
                     Files.createDirectories(Paths.get(objectsDir));
                     for (Object object : module.objects) {
                         ObjectPageContext objectPageContext = new ObjectPageContext(object, module, project,
-                                rootPathConstructLevel, "API Docs - Object : " + object.name);
+                                rootPathConstructLevel, "API Docs - Object : " + object.name, excludeIndex);
                         String objectFilePath = objectsDir + File.separator + object.name + HTML;
                         Writer.writeHtmlDocument(objectPageContext, objectTemplateName, objectFilePath);
                     }
@@ -235,7 +260,7 @@ public class BallerinaDocGenerator {
                     Files.createDirectories(Paths.get(clientsDir));
                     for (Client client : module.clients) {
                         ClientPageContext clientPageContext = new ClientPageContext(client, module, project,
-                                rootPathConstructLevel, "API Docs - Client : " + client.name);
+                                rootPathConstructLevel, "API Docs - Client : " + client.name, excludeIndex);
                         String clientFilePath = clientsDir + File.separator + client.name + HTML;
                         Writer.writeHtmlDocument(clientPageContext, clientTemplateName, clientFilePath);
                     }
@@ -247,7 +272,7 @@ public class BallerinaDocGenerator {
                     Files.createDirectories(Paths.get(listenersDir));
                     for (Listener listener : module.listeners) {
                         ListenerPageContext listenerPageContext = new ListenerPageContext(listener, module, project,
-                                rootPathConstructLevel, "API Docs - Listener : " + listener.name);
+                                rootPathConstructLevel, "API Docs - Listener : " + listener.name, excludeIndex);
                         String listenerFilePath = listenersDir + File.separator + listener.name + HTML;
                         Writer.writeHtmlDocument(listenerPageContext, listenerTemplateName, listenerFilePath);
                     }
@@ -257,7 +282,8 @@ public class BallerinaDocGenerator {
                 if (!module.functions.isEmpty()) {
                     String functionsFile = modDir + File.separator + "functions" + HTML;
                     FunctionsPageContext functionsPageContext = new FunctionsPageContext(module.functions,
-                            module, project, rootPathModuleLevel, "API Docs - Functions : " + module.id);
+                            module, project, rootPathModuleLevel, "API Docs - Functions : " + module.id,
+                            excludeIndex);
                     Writer.writeHtmlDocument(functionsPageContext, functionsTemplateName, functionsFile);
                 }
 
@@ -265,7 +291,8 @@ public class BallerinaDocGenerator {
                 if (!module.constants.isEmpty()) {
                     String constantsFile = modDir + File.separator + "constants" + HTML;
                     ConstantsPageContext constantsPageContext = new ConstantsPageContext(module.constants,
-                            module, project, rootPathModuleLevel, "API Docs - Constants : " + module.id);
+                            module, project, rootPathModuleLevel, "API Docs - Constants : " + module.id,
+                            excludeIndex);
                     Writer.writeHtmlDocument(constantsPageContext, constantsTemplateName, constantsFile);
                 }
 
@@ -273,7 +300,7 @@ public class BallerinaDocGenerator {
                 if (!(module.unionTypes.isEmpty() && module.finiteTypes.isEmpty())) {
                     String typesFile = modDir + File.separator + "types" + HTML;
                     TypesPageContext typesPageContext = new TypesPageContext(module.unionTypes, module, project,
-                            rootPathModuleLevel, "API Docs - Types : " + module.id);
+                            rootPathModuleLevel, "API Docs - Types : " + module.id, excludeIndex);
                     Writer.writeHtmlDocument(typesPageContext, typesTemplateName, typesFile);
                 }
 
@@ -281,7 +308,8 @@ public class BallerinaDocGenerator {
                 if (!module.annotations.isEmpty()) {
                     String annotationsFile = modDir + File.separator + "annotations" + HTML;
                     AnnotationsPageContext annotationsPageContext = new AnnotationsPageContext(module.annotations,
-                            module, project, rootPathModuleLevel, "API Docs - Annotations : " + module.id);
+                            module, project, rootPathModuleLevel, "API Docs - Annotations : " + module.id,
+                            excludeIndex);
                     Writer.writeHtmlDocument(annotationsPageContext, annotationsTemplateName, annotationsFile);
                 }
 
@@ -289,11 +317,13 @@ public class BallerinaDocGenerator {
                 if (!module.errors.isEmpty()) {
                     String errorsFile = modDir + File.separator + "errors" + HTML;
                     ErrorsPageContext errorsPageContext = new ErrorsPageContext(module.errors, module, project,
-                            rootPathModuleLevel, "API Docs - Errors : " + module.id);
+                            rootPathModuleLevel, "API Docs - Errors : " + module.id, excludeIndex);
                     Writer.writeHtmlDocument(errorsPageContext, errorsTemplateName, errorsFile);
                 }
                 // Create module json
                 genModuleJson(module, modDir + File.separator + module.id + JSON);
+                // Create search json
+                genSearchJson(module, modDir + File.separator + MODULE_SEARCH + JSON);
 
                 if (BallerinaDocUtils.isDebugEnabled()) {
                     out.println("docerina: generated docs for module: " + module.id);
@@ -303,11 +333,37 @@ public class BallerinaDocGenerator {
                         module.id, e.getMessage()));
                 log.error(String.format("API documentation generation failed for %s", module.id), e);
             }
+
+            if (!module.resources.isEmpty()) {
+                String resourcesDir = modDir + File.separator + "resources";
+                if (BallerinaDocUtils.isDebugEnabled()) {
+                    out.println("docerina: copying project resources ");
+                }
+                for (Path resourcePath : module.resources) {
+                    File resourcesDirFile = new File(resourcesDir);
+                    try {
+                        FileUtils.copyFileToDirectory(resourcePath.toFile(), resourcesDirFile);
+                    } catch (IOException e) {
+                        out.println(String.format("docerina: failed to copy [resource] %s into " +
+                                "[resources directory] %s. Cause: %s", resourcePath.toString(),
+                                resourcesDirFile.toString(), e.getMessage()));
+                        log.error(String.format("docerina: failed to copy [resource] %s into [resources directory] "
+                                + "%s. Cause: %s", resourcePath.toString(), resourcesDirFile.toString(),
+                                e.getMessage()), e);
+                    }
+                }
+                if (BallerinaDocUtils.isDebugEnabled()) {
+                    out.println("docerina: successfully copied project resources into " + resourcesDir);
+                }
+            }
         }
 
-        // Generate index.html for the project
-        genIndexHtml(output, project);
-
+        if (!excludeIndex) {
+            // Generate index.html for the project
+            genIndexHtml(output, project);
+        }
+        // Merge search JSONS of modules
+        mergeSearchJsons(output);
         // Copy template resources to output dir
         if (BallerinaDocUtils.isDebugEnabled()) {
             out.println("docerina: copying HTML theme into " + output);
@@ -315,37 +371,14 @@ public class BallerinaDocGenerator {
         try {
             BallerinaDocUtils.copyResources("html-template-resources", output);
             BallerinaDocUtils.copyResources("syntax-highlighter", output);
+            BallerinaDocUtils.copyResources("doc-search", output);
         } catch (IOException e) {
             out.println(String.format("docerina: failed to copy the docerina-theme resource. Cause: %s", e.getMessage
                     ()));
-            log.error("Failed to coxpy the docerina-theme resource.", e);
+            log.error("Failed to copy the docerina-theme resource.", e);
         }
         if (BallerinaDocUtils.isDebugEnabled()) {
             out.println("docerina: successfully copied HTML theme into " + output);
-        }
-
-        if (!resources.isEmpty()) {
-            String resourcesDir = output + File.separator + "resources";
-            if (BallerinaDocUtils.isDebugEnabled()) {
-                out.println("docerina: copying project resources ");
-            }
-            for (Map.Entry<String, List<Path>> resourceSet : resources.entrySet()) {
-                File resourcesDirFile = new File(output + File.separator + resourceSet.getKey()
-                        + File.separator + "resources");
-                resourceSet.getValue().forEach(resource -> {
-                    try {
-                        FileUtils.copyFileToDirectory(resource.toFile(), resourcesDirFile);
-                    } catch (IOException e) {
-                        out.println(String.format("docerina: failed to copy [resource] %s into [resources directory] " +
-                                "%s. Cause: %s", resource.toString(), resourcesDirFile.toString(), e.getMessage()));
-                        log.error(String.format("docerina: failed to copy [resource] %s into [resources directory] " +
-                                "%s. Cause: %s", resource.toString(), resourcesDirFile.toString(), e.getMessage()), e);
-                    }
-                });
-            }
-            if (BallerinaDocUtils.isDebugEnabled()) {
-                out.println("docerina: successfully copied project resources into " + resourcesDir);
-            }
         }
 
         try {
@@ -369,7 +402,8 @@ public class BallerinaDocGenerator {
     private static void genIndexHtml(String output, Project project) {
         String projectTemplateName = System.getProperty(BallerinaDocConstants.PROJECT_TEMPLATE_NAME_KEY, "index");
         String indexHtmlPath = output + File.separator  + projectTemplateName + HTML;
-        ProjectPageContext projectPageContext = new ProjectPageContext(project, "API Documentation", "");
+        ProjectPageContext projectPageContext = new ProjectPageContext(project, "API Documentation", "",
+                false);
         // Generate index.html for the project
         try {
             Writer.writeHtmlDocument(projectPageContext, projectTemplateName, indexHtmlPath);
@@ -387,6 +421,138 @@ public class BallerinaDocGenerator {
         } catch (IOException e) {
             out.println(String.format("docerina: failed to create the module.json. Cause: %s", e.getMessage()));
             log.error("Failed to create module.json file.", e);
+        }
+    }
+
+    private static void genSearchJson(Module module, String jsonPath) {
+        List<ModuleSearchJson> searchModules = new ArrayList<>();
+        List<ConstructSearchJson> searchFunctions = new ArrayList<>();
+        List<ConstructSearchJson> searchObjects = new ArrayList<>();
+        List<ConstructSearchJson> searchRecords = new ArrayList<>();
+        List<ConstructSearchJson> searchConstants = new ArrayList<>();
+        List<ConstructSearchJson> searchErrors = new ArrayList<>();
+        List<ConstructSearchJson> searchTypes = new ArrayList<>();
+        List<ConstructSearchJson> searchClients = new ArrayList<>();
+        List<ConstructSearchJson> searchListeners = new ArrayList<>();
+        List<ConstructSearchJson> searchAnnotations = new ArrayList<>();
+
+        if (module.summary != null) {
+            searchModules.add(new ModuleSearchJson(module.id, getFirstLine(module.summary)));
+        }
+        module.functions.forEach((function) ->
+                searchFunctions.add(new ConstructSearchJson(function.name, module.id,
+                        getFirstLine(function.description))));
+
+        module.objects.forEach((object) ->
+                searchObjects.add(new ConstructSearchJson(object.name, module.id, getFirstLine(object.description))));
+
+        module.clients.forEach((client) ->
+                searchClients.add(new ConstructSearchJson(client.name, module.id, getFirstLine(client.description))));
+
+        module.listeners.forEach((listener) ->
+                searchListeners.add(new ConstructSearchJson(listener.name, module.id,
+                        getFirstLine(listener.description))));
+
+        module.records.forEach((record) ->
+                searchRecords.add(new ConstructSearchJson(record.name, module.id, getFirstLine(record.description))));
+
+        module.constants.forEach((constant) ->
+                searchConstants.add(new ConstructSearchJson(constant.name, module.id,
+                        getFirstLine(constant.description))));
+
+        module.errors.forEach((error) ->
+                searchErrors.add(new ConstructSearchJson(error.name, module.id, getFirstLine(error.description))));
+
+        module.unionTypes.forEach((unionType) ->
+                searchTypes.add(new ConstructSearchJson(unionType.name, module.id,
+                        getFirstLine(unionType.description))));
+
+        module.finiteTypes.forEach((finiteType) ->
+                searchTypes.add(new ConstructSearchJson(finiteType.name, module.id,
+                        getFirstLine(finiteType.description))));
+
+        module.annotations.forEach((annotation) ->
+                searchAnnotations.add(new ConstructSearchJson(annotation.name, module.id,
+                        getFirstLine(annotation.description))));
+
+        SearchJson searchJson = new SearchJson(searchModules, searchObjects, searchFunctions, searchRecords,
+                searchConstants, searchErrors, searchTypes, searchClients, searchListeners, searchAnnotations);
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        File jsonFile = new File(jsonPath);
+        try (java.io.Writer writer = new OutputStreamWriter(new FileOutputStream(jsonFile), StandardCharsets.UTF_8)) {
+            String json = gson.toJson(searchJson);
+            writer.write(new String(json.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            out.println(String.format("docerina: failed to create the search.json. Cause: %s", e.getMessage()));
+            log.error("Failed to create search.json file.", e);
+        }
+
+    }
+
+    private static String getFirstLine(String description) {
+        String[] splits = description.split("\\.", 2);
+        if (splits.length < 2) {
+            return splits[0];
+        } else {
+            if (splits[0].contains("<p>")) {
+                return splits[0] + ".</p>";
+            }
+            return splits[0] + ".";
+        }
+    }
+
+    private static void mergeSearchJsons(String docRoot) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        File directory = new File(docRoot);
+        // get all the files from a directory
+        File[] fList = directory.listFiles();
+        if (fList != null) {
+            Arrays.sort(fList);
+
+            SearchJson searchJson = new SearchJson();
+            for (File file : fList) {
+                if (file.isDirectory()) {
+                    Path moduleJsonPath = Paths.get(file.getAbsolutePath(), MODULE_SEARCH + JSON);
+                    if (moduleJsonPath.toFile().exists()) {
+                        try (BufferedReader br = Files.newBufferedReader(moduleJsonPath, StandardCharsets.UTF_8)) {
+                            SearchJson modSearchJson = gson.fromJson(br, SearchJson.class);
+                            searchJson.getModules().addAll(modSearchJson.getModules());
+                            searchJson.getFunctions().addAll(modSearchJson.getFunctions());
+                            searchJson.getObjects().addAll(modSearchJson.getObjects());
+                            searchJson.getClients().addAll(modSearchJson.getClients());
+                            searchJson.getListeners().addAll(modSearchJson.getListeners());
+                            searchJson.getRecords().addAll(modSearchJson.getRecords());
+                            searchJson.getConstants().addAll(modSearchJson.getConstants());
+                            searchJson.getErrors().addAll(modSearchJson.getErrors());
+                            searchJson.getTypes().addAll(modSearchJson.getTypes());
+                            searchJson.getAnnotations().addAll(modSearchJson.getAnnotations());
+                        } catch (IOException e) {
+                            String errorMsg = String.format("API documentation generation failed. Cause: %s",
+                                    e.getMessage());
+                            out.println(errorMsg);
+                            log.error(errorMsg, e);
+                            return;
+                        }
+                    }
+                }
+            }
+            File docSearchDir = new File(docRoot + File.separator + SEARCH_DIR);
+            boolean docSearchDirExists = docSearchDir.exists() || docSearchDir.mkdir();
+            if (!docSearchDirExists) {
+                out.println("docerina: failed to create " + SEARCH_DIR + " directory");
+                log.error("Failed to create " + SEARCH_DIR + " directory.");
+            }
+            File jsonFile = new File(docRoot + File.separator + SEARCH_DIR + File.separator + SEARCH_DATA);
+            try (java.io.Writer writer = new OutputStreamWriter(new FileOutputStream(jsonFile),
+                    StandardCharsets.UTF_8)) {
+                String json = gson.toJson(searchJson);
+                String js = "var searchData = " + json + ";";
+                writer.write(new String(js.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                out.println(String.format("docerina: failed to create the " + SEARCH_DATA + ". Cause: %s",
+                        e.getMessage()));
+                log.error("Failed to create " + SEARCH_DATA + " file.", e);
+            }
         }
     }
 
@@ -424,6 +590,50 @@ public class BallerinaDocGenerator {
 
     public static void setPrintStream(PrintStream out) {
         BallerinaDocGenerator.out = out;
+    }
+
+    /**
+     * Generate docs generator model.
+     *
+     * @param moduleDocList moduleDocList modules list whose docs to be generated
+     * @return docs generator model of the project
+     */
+    public static Project getDocsGenModel(List<ModuleDoc> moduleDocList) {
+        Project project = new Project();
+        project.isSingleFile =
+                moduleDocList.size() == 1 && moduleDocList.get(0).bLangPackage.packageID.name.value.equals(".");
+        if (project.isSingleFile) {
+            project.sourceFileName = moduleDocList.get(0).bLangPackage.packageID.sourceFileName.value;
+        }
+        project.name = "";
+        project.description = "";
+
+        List<Module> moduleDocs = new ArrayList<>();
+        for (ModuleDoc moduleDoc : moduleDocList) {
+            // Generate module models
+            Module module = new Module();
+            module.id = moduleDoc.bLangPackage.packageID.name.toString();
+            module.orgName = moduleDoc.bLangPackage.packageID.orgName.toString();
+            String moduleVersion = moduleDoc.bLangPackage.packageID.version.toString();
+            // get version from system property if not found in bLangPackage
+            module.version = moduleVersion.equals("") ?
+                    System.getProperty(BallerinaDocConstants.VERSION) :
+                    moduleVersion;
+            module.summary = moduleDoc.summary;
+            module.description = moduleDoc.description;
+
+            // populate module constructs
+            sortModuleConstructs(moduleDoc.bLangPackage);
+            boolean hasPublicConstructs = Generator.generateModuleConstructs(module, moduleDoc.bLangPackage);
+
+            // collect module's doc resources
+            if (hasPublicConstructs) {
+                module.resources.addAll(moduleDoc.resources);
+                moduleDocs.add(module);
+            }
+        }
+        project.modules = moduleDocs;
+        return project;
     }
 
     private static void sortModuleConstructs(BLangPackage bLangPackage) {

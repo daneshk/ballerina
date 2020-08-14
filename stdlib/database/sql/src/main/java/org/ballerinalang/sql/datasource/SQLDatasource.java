@@ -21,6 +21,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.ballerinalang.jvm.values.DecimalValue;
 import org.ballerinalang.jvm.values.MapValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.sql.Constants;
 import org.ballerinalang.sql.utils.ErrorGenerator;
 
@@ -33,6 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.sql.XAConnection;
+import javax.sql.XADataSource;
+
 /**
  * SQL datasource representation.
  *
@@ -44,13 +48,30 @@ public class SQLDatasource {
     private AtomicInteger clientCounter = new AtomicInteger(0);
     private Lock mutex = new ReentrantLock();
     private boolean poolShutdown = false;
+    private boolean xaConn;
+    private XADataSource xaDataSource;
 
     private SQLDatasource(SQLDatasourceParams sqlDatasourceParams) {
         buildDataSource(sqlDatasourceParams);
-        try (Connection con = getSQLConnection()) {
+        Connection connection = null;
+        try {
+            xaConn = hikariDataSource.isWrapperFor(XADataSource.class);
+            if (xaConn) {
+                xaDataSource = hikariDataSource.unwrap(XADataSource.class);
+                connection = xaDataSource.getXAConnection().getConnection();
+            } else {
+                connection = getConnection();
+            }
         } catch (SQLException e) {
             throw ErrorGenerator.getSQLDatabaseError(e,
-                    "error while obtaining connection for " + Constants.CONNECTOR_NAME + ", ");
+                    "error while verifying the connection for " + Constants.CONNECTOR_NAME + ", ");
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ignored) {
+                }
+            }
         }
     }
 
@@ -100,9 +121,19 @@ public class SQLDatasource {
         return newSqlDatasource;
     }
 
-
-    public Connection getSQLConnection() throws SQLException {
+    Connection getConnection() throws SQLException {
         return hikariDataSource.getConnection();
+    }
+
+    public XAConnection getXAConnection() throws SQLException {
+        if (isXADataSource()) {
+            return xaDataSource.getXAConnection();
+        }
+        return null;
+    }
+
+    public boolean isXADataSource() {
+        return xaConn;
     }
 
     private void closeConnectionPool() {
@@ -153,7 +184,13 @@ public class SQLDatasource {
                     //It is required to set the url to the datasource property when the
                     //datasource class name is provided. Because according to hikari
                     //either jdbcUrl or datasourceClassName will be honoured.
-                    config.addDataSourceProperty(Constants.Options.URL, sqlDatasourceParams.url);
+                    config.addDataSourceProperty(Constants.Options.URL.getValue(), sqlDatasourceParams.url);
+                }
+                if (sqlDatasourceParams.user != null) {
+                    config.addDataSourceProperty(Constants.USERNAME, sqlDatasourceParams.user);
+                }
+                if (sqlDatasourceParams.password != null) {
+                    config.addDataSourceProperty(Constants.PASSWORD, sqlDatasourceParams.password);
                 }
             }
             config.setDataSourceClassName(sqlDatasourceParams.datasourceName);
@@ -180,10 +217,10 @@ public class SQLDatasource {
                 }
             }
             if (sqlDatasourceParams.options != null) {
-                MapValue<String, Object> optionMap = (MapValue<String, Object>) sqlDatasourceParams.options;
+                MapValue<BString, Object> optionMap = (MapValue<BString, Object>) sqlDatasourceParams.options;
                 optionMap.entrySet().forEach(entry -> {
                     if (SQLDatasourceUtils.isSupportedDbOptionType(entry.getValue())) {
-                        config.addDataSourceProperty(entry.getKey(), entry.getValue());
+                        config.addDataSourceProperty(entry.getKey().getValue(), entry.getValue());
                     } else {
                         throw ErrorGenerator.getSQLApplicationError("unsupported type " + entry.getKey()
                                 + " for the db option");
@@ -193,7 +230,7 @@ public class SQLDatasource {
             hikariDataSource = new HikariDataSource(config);
             Runtime.getRuntime().addShutdownHook(new Thread(this::closeConnectionPool));
         } catch (Throwable t) {
-            StringBuilder message = new StringBuilder("error in sql connector configuration: " + t.getMessage() + "");
+            StringBuilder message = new StringBuilder("Error in SQL connector configuration: " + t.getMessage() + "");
             String lastCauseMessage = null;
             int count = 0;
             while (t.getCause() != null && count < 3) {

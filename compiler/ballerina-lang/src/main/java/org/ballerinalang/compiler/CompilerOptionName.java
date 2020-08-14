@@ -30,6 +30,8 @@ public enum CompilerOptionName {
 
     PRESERVE_WHITESPACE("preserveWhitespace"),
 
+    NEW_PARSER_ENABLED("newParserEnabled"),
+
     OFFLINE("offline"),
 
     SKIP_TESTS("skipTests"),
@@ -45,6 +47,12 @@ public enum CompilerOptionName {
     TEST_ENABLED("testEnabled"),
 
     TARGET_BINARY_PATH("targetBinaryPath"),
+
+    BALO_GENERATION("genBalo"),
+
+    SKIP_MODULE_DEPENDENCIES("skipModuleDependencies"),
+
+    DUMP_BIR("dumpBIR"),
 
     LOCK_ENABLED("lockEnabled"),
 

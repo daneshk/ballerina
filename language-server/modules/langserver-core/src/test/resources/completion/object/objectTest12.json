@@ -736,29 +736,6 @@
       ]
     },
     {
-      "label": "ballerina/rabbitmq",
-      "kind": "Module",
-      "detail": "Module",
-      "sortText": "140",
-      "insertText": "rabbitmq",
-      "insertTextFormat": "Snippet",
-      "additionalTextEdits": [
-        {
-          "range": {
-            "start": {
-              "line": 1,
-              "character": 0
-            },
-            "end": {
-              "line": 1,
-              "character": 0
-            }
-          },
-          "newText": "import ballerina/rabbitmq;\n"
-        }
-      ]
-    },
-    {
       "label": "ballerina/lang.future",
       "kind": "Module",
       "detail": "Module",
@@ -962,29 +939,6 @@
             }
           },
           "newText": "import ballerina/transactions;\n"
-        }
-      ]
-    },
-    {
-      "label": "ballerina/nats",
-      "kind": "Module",
-      "detail": "Module",
-      "sortText": "140",
-      "insertText": "nats",
-      "insertTextFormat": "Snippet",
-      "additionalTextEdits": [
-        {
-          "range": {
-            "start": {
-              "line": 1,
-              "character": 0
-            },
-            "end": {
-              "line": 1,
-              "character": 0
-            }
-          },
-          "newText": "import ballerina/nats;\n"
         }
       ]
     },
@@ -1293,7 +1247,7 @@
       "kind": "Snippet",
       "detail": "Snippet",
       "sortText": "240",
-      "insertText": "public function __init(${1:any arg}) {\n\t${2}\n}",
+      "insertText": "public function init(${1:any arg}) {\n\t${2}\n}",
       "insertTextFormat": "Snippet"
     },
     {

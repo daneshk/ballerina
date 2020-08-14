@@ -50,8 +50,9 @@ public class KafkaServerConnectorImpl implements KafkaServerConnector {
                                     KafkaConsumer kafkaConsumer) throws KafkaConnectorException {
         this.kafkaListener = kafkaListener;
         this.serviceId = serviceId;
-        if (configParams.get(KafkaConstants.ALIAS_CONCURRENT_CONSUMERS) != null) {
-            this.numOfConcurrentConsumers = (Integer) configParams.get(KafkaConstants.ALIAS_CONCURRENT_CONSUMERS);
+        if (configParams.get(KafkaConstants.ALIAS_CONCURRENT_CONSUMERS.getValue()) != null) {
+            this.numOfConcurrentConsumers =
+                    (Integer) configParams.get(KafkaConstants.ALIAS_CONCURRENT_CONSUMERS.getValue());
         }
         if (this.numOfConcurrentConsumers <= 0) {
             throw new KafkaConnectorException(

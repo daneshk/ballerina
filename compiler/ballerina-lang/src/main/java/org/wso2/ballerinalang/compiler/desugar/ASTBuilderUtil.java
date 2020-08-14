@@ -35,6 +35,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.symbols.BSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.Symbols;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BArrayType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BIntersectionType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.tree.BLangBlockFunctionBody;
@@ -90,6 +91,7 @@ import org.wso2.ballerinalang.compiler.util.Name;
 import org.wso2.ballerinalang.compiler.util.Names;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
 import org.wso2.ballerinalang.compiler.util.diagnotic.DiagnosticPos;
+import org.wso2.ballerinalang.util.Flags;
 import org.wso2.ballerinalang.util.Lists;
 
 import java.util.ArrayList;
@@ -634,6 +636,23 @@ public class ASTBuilderUtil {
         return arrayLiteralNode;
     }
 
+    static BLangListConstructorExpr createListConstructorExpr(DiagnosticPos pos, BType type) {
+        if (type.tag == TypeTags.INTERSECTION) {
+            type = ((BIntersectionType) type).effectiveType;
+        }
+
+        if (type.tag != TypeTags.ARRAY && type.tag != TypeTags.TUPLE) {
+            throw new IllegalArgumentException("Expected a 'BArrayType' instance or a 'BTupleType' instance");
+        }
+
+        final BLangListConstructorExpr listConstructorExpr =
+                (BLangListConstructorExpr) TreeBuilder.createListConstructorExpressionNode();
+        listConstructorExpr.pos = pos;
+        listConstructorExpr.type = type;
+        listConstructorExpr.exprs = new ArrayList<>();
+        return listConstructorExpr;
+    }
+
     static BLangTypeInit createEmptyTypeInit(DiagnosticPos pos, BType type) {
         BLangTypeInit objectInitNode = (BLangTypeInit) TreeBuilder.createInitNode();
         objectInitNode.pos = pos;
@@ -797,19 +816,22 @@ public class ASTBuilderUtil {
         dupFuncSymbol.scope = invokableSymbol.scope;
         dupFuncSymbol.tag = invokableSymbol.tag;
         dupFuncSymbol.schedulerPolicy = invokableSymbol.schedulerPolicy;
+        dupFuncSymbol.strandName = invokableSymbol.strandName;
 
         BInvokableType prevFuncType = (BInvokableType) invokableSymbol.type;
         dupFuncSymbol.type = new BInvokableType(new ArrayList<>(prevFuncType.paramTypes),
-                prevFuncType.restType, prevFuncType.retType, prevFuncType.tsymbol);
+                                                prevFuncType.restType, prevFuncType.retType, prevFuncType.tsymbol);
         return dupFuncSymbol;
     }
 
-    public static BInvokableSymbol duplicateInvokableSymbol(BInvokableSymbol invokableSymbol, BSymbol owner,
-                                                            Name newName, PackageID newPkgID) {
+    public static BInvokableSymbol duplicateFunctionDeclarationSymbol(BInvokableSymbol invokableSymbol, BSymbol owner,
+                                                                      Name newName, PackageID newPkgID) {
         BInvokableSymbol dupFuncSymbol = Symbols.createFunctionSymbol(invokableSymbol.flags, newName, newPkgID,
-                invokableSymbol.type, owner, invokableSymbol.bodyExist);
+                                                                      null, owner, invokableSymbol.bodyExist);
         dupFuncSymbol.receiverSymbol = invokableSymbol.receiverSymbol;
         dupFuncSymbol.retType = invokableSymbol.retType;
+        dupFuncSymbol.receiverSymbol = null;
+        dupFuncSymbol.flags |= Flags.INTERFACE;
 
         dupFuncSymbol.params = invokableSymbol.params.stream()
                 .map(param -> duplicateParamSymbol(param, dupFuncSymbol))

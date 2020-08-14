@@ -15,8 +15,8 @@
  */
 package org.ballerinalang.langserver.diagnostic;
 
-import org.ballerinalang.langserver.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.LSContext;
+import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.workspace.LSDocumentIdentifier;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentManager;
 import org.ballerinalang.langserver.compiler.CollectDiagnosticListener;
@@ -73,7 +73,7 @@ public class DiagnosticsHelper {
             throws CompilationFailedException {
         // Compile diagnostics
         List<org.ballerinalang.util.diagnostic.Diagnostic> diagnostics = new ArrayList<>();
-        LSModuleCompiler.getBLangPackages(context, docManager, null, true, true, true);
+        LSModuleCompiler.getBLangPackages(context, docManager, null, true, true, true, true);
         CompilerContext compilerContext = context.get(DocumentServiceKeys.COMPILER_CONTEXT_KEY);
         if (compilerContext.get(DiagnosticListener.class) instanceof CollectDiagnosticListener) {
             diagnostics = ((CollectDiagnosticListener) compilerContext.get(DiagnosticListener.class)).getDiagnostics();

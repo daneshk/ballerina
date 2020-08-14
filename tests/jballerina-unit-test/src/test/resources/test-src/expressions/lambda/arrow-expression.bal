@@ -210,3 +210,39 @@ function testArrowExprWithNoReturn() returns int {
 function incrementInt(int x) {
     gVar += x;
 }
+
+type Sum function (int) returns function (int) returns int;
+
+function testNestedArrowExpressionWithOneParameter() {
+    Sum sum = intVar1 => intVar2 => intVar1 + intVar2;
+    var newFunction = sum(7);
+    var result = newFunction(5);
+    assertEquality(12, result);
+}
+
+function testTypeNarrowingInArrowExpression() {
+    var expected = "Hello World";
+    var result = "Wrong Text Here";
+
+    string|int s1 = "World";
+    if (s1 is string) {
+        string s2 = s1;
+        function() returns string arrowFun = () => "Hello " + s2;
+        result = arrowFun();
+    }
+
+    assertEquality(expected, result);
+}
+
+const ASSERTION_ERR_REASON = "AssertionError";
+
+function assertEquality(any|error expected, any|error actual) {
+    if expected is anydata && actual is anydata && expected == actual {
+        return;
+    }
+    if expected === actual {
+        return;
+    }
+    panic error(ASSERTION_ERR_REASON,
+                message = "expected '" + expected.toString() + "', found '" + actual.toString () + "'");
+}

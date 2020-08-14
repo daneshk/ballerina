@@ -43,7 +43,7 @@ public type Response object {
     int requestTime = 0;
     private mime:Entity? entity = ();
 
-    public function __init() {
+    public function init() {
         self.entity = self.createNewEntity();
     }
 
@@ -77,7 +77,7 @@ public type Response object {
     #
     # + headerName - The header name
     # + position - Represents the position of the header as an optional parameter
-    # + return - Returns true if the specified header key exists
+    # + return - `true` if the specified header key exists
     public function hasHeader(string headerName, public mime:HeaderPosition position = mime:LEADING) returns boolean {
         mime:Entity entity = self.getEntityWithoutBody();
         return entity.hasHeader(headerName, position);
@@ -97,7 +97,7 @@ public type Response object {
         return entity.getHeader(headerName, position);
     }
 
-    # Adds the specified header to the response. Existing header values are not replaced.
+    # Adds the specified header to the response. Existing header values are not replaced. Panic if an illegal header is passed.
     #
     # + headerName - The header name
     # + headerValue - The header value
@@ -122,7 +122,7 @@ public type Response object {
     }
 
     # Sets the specified header to the response. If a mapping already exists for the specified header key, the
-    # existing header value is replaced with the specified header value.
+    # existing header value is replaced with the specified header value. Panic if an illegal header is passed.
     #
     # + headerName - The header name
     # + headerValue - The header value
@@ -193,11 +193,11 @@ public type Response object {
         } else {
             var payload = result.getJson();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the json payload from the response";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                }
             } else {
                 return payload;
@@ -215,11 +215,11 @@ public type Response object {
         } else {
             var payload = result.getXml();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the xml payload from the response";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                }
             } else {
                 return payload;
@@ -237,11 +237,11 @@ public type Response object {
         } else {
             var payload = result.getText();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the text payload from the response";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                }
             } else {
                 return payload;
@@ -261,7 +261,7 @@ public type Response object {
             var payload = result.getByteChannel();
             if (payload is mime:Error) {
                 string message = "Error occurred while retrieving the byte channel from the response";
-                return getGenericClientError(message, payload);
+                return GenericClientError(message, payload);
             } else {
                 return payload;
             }
@@ -279,7 +279,7 @@ public type Response object {
             var payload = result.getByteArray();
             if (payload is mime:Error) {
                 string message = "Error occurred while retrieving the binary payload from the response";
-                return getGenericClientError(message, payload);
+                return GenericClientError(message, payload);
             } else {
                 return payload;
             }
@@ -288,7 +288,7 @@ public type Response object {
 
     # Extracts body parts from the response. If the content type is not a composite media type, an error is returned.
     #
-    # + return - Returns the body parts as an array of entities or an `http:ClientError` if there were any errors in
+    # + return - The body parts as an array of entities or else an `http:ClientError` if there were any errors in
     #            constructing the body parts from the response
     public function getBodyParts() returns mime:Entity[]|ClientError {
         var result = self.getEntity();
@@ -299,7 +299,7 @@ public type Response object {
             var bodyParts = result.getBodyParts();
             if (bodyParts is mime:Error) {
                 string message = "Error occurred while retrieving body parts from the response";
-                return getGenericClientError(message, bodyParts);
+                return GenericClientError(message, bodyParts);
             } else {
                 return bodyParts;
             }

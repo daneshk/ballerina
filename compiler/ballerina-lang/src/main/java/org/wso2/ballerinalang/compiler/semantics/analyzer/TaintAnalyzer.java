@@ -67,9 +67,11 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangArrowFunction;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangBinaryExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangCheckPanickedExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangCheckedExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangCommitExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstant;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangElvisExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangFailExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangFieldBasedAccess;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangGroupExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess;
@@ -84,13 +86,17 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangMatchExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangNamedArgsExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangQueryAction;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangQueryExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangRawTemplateLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRestArgsExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangServiceConstructorExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangStatementExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangStringTemplateLiteral;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTableConstructorExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTableMultiKeyExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTernaryExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTransactionalExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTrapExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeConversionExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeInit;
@@ -114,7 +120,6 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQName;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQuotedString;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLSequenceLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLTextLiteral;
-import org.wso2.ballerinalang.compiler.tree.statements.BLangAbort;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangAssignment;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBreak;
@@ -133,7 +138,9 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangPanic;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRecordDestructure;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRecordVariableDef;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRetry;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangRetryTransaction;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangReturn;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangRollback;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangSimpleVariableDef;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangStatement;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangTransaction;
@@ -147,6 +154,7 @@ import org.wso2.ballerinalang.compiler.tree.types.BLangArrayType;
 import org.wso2.ballerinalang.compiler.tree.types.BLangBuiltInRefTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangConstrainedType;
 import org.wso2.ballerinalang.compiler.tree.types.BLangFunctionTypeNode;
+import org.wso2.ballerinalang.compiler.tree.types.BLangIntersectionTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangLetVariable;
 import org.wso2.ballerinalang.compiler.tree.types.BLangObjectTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangRecordTypeNode;
@@ -724,12 +732,12 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
-    public void visit(BLangAbort abortNode) {
+    public void visit(BLangRetry retryNode) {
         /* ignore */
     }
 
     @Override
-    public void visit(BLangRetry retryNode) {
+    public void visit(BLangRetryTransaction retryTransaction) {
         /* ignore */
     }
 
@@ -836,16 +844,14 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     public void visit(BLangTransaction transactionNode) {
         transactionNode.transactionBody.accept(this);
         overridingAnalysis = false;
-        if (transactionNode.onRetryBody != null) {
-            transactionNode.onRetryBody.accept(this);
-        }
-        if (transactionNode.committedBody != null) {
-            transactionNode.committedBody.accept(this);
-        }
-        if (transactionNode.abortedBody != null) {
-            transactionNode.abortedBody.accept(this);
-        }
         overridingAnalysis = true;
+    }
+
+    @Override
+    public void visit(BLangRollback rollbackNode) {
+        if (rollbackNode.expr != null) {
+            rollbackNode.expr.accept(this);
+        }
     }
 
     @Override
@@ -924,6 +930,24 @@ public class TaintAnalyzer extends BLangNodeVisitor {
         } else {
             TaintedStatus isTainted = TaintedStatus.UNTAINTED;
             for (BLangExpression expression : listConstructorExpr.exprs) {
+                expression.accept(this);
+                // Used to update the variable this literal is getting assigned to.
+                if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
+                    isTainted = TaintedStatus.TAINTED;
+                }
+            }
+            getCurrentAnalysisState().taintedStatus = isTainted;
+        }
+    }
+
+    @Override
+    public void visit(BLangTableConstructorExpr tableConstructorExpr) {
+        if (tableConstructorExpr.recordLiteralList.size() == 0) {
+            // Empty arrays are untainted.
+            getCurrentAnalysisState().taintedStatus = TaintedStatus.UNTAINTED;
+        } else {
+            TaintedStatus isTainted = TaintedStatus.UNTAINTED;
+            for (BLangExpression expression : tableConstructorExpr.recordLiteralList) {
                 expression.accept(this);
                 // Used to update the variable this literal is getting assigned to.
                 if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
@@ -1014,6 +1038,11 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangTableMultiKeyExpr tableMultiKeyExpr) {
+        analyzeExprList(tableMultiKeyExpr.multiKeyIndexExprs);
+    }
+
+    @Override
     public void visit(BLangInvocation invocationExpr) {
         // handle error constructor invocation
         if (isErrorConstructorInvocation(invocationExpr) || isExternalLangLibFunction(invocationExpr)) {
@@ -1049,6 +1078,11 @@ public class TaintAnalyzer extends BLangNodeVisitor {
                 analyzeInvocation(invocationExpr);
             }
         }
+    }
+
+    @Override
+    public void visit(BLangInvocation.BLangActionInvocation actionInvocation) {
+        this.visit((BLangInvocation) actionInvocation);
     }
 
     private boolean isErrorConstructorInvocation(BLangInvocation invocationExpr) {
@@ -1125,11 +1159,6 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
-    public void visit(BLangInvocation.BLangActionInvocation actionInvocationExpr) {
-        /* ignore */
-    }
-
-    @Override
     public void visit(BLangTernaryExpr ternaryExpr) {
         overridingAnalysis = false;
         ternaryExpr.thenExpr.accept(this);
@@ -1183,6 +1212,15 @@ public class TaintAnalyzer extends BLangNodeVisitor {
         getCurrentAnalysisState().taintedStatus = TaintedStatus.UNTAINTED;
     }
 
+    @Override
+    public void visit(BLangTransactionalExpr transactionalExpr) {
+        getCurrentAnalysisState().taintedStatus = TaintedStatus.UNTAINTED;
+    }
+
+    @Override
+    public void visit(BLangCommitExpr commitExpr) {
+        getCurrentAnalysisState().taintedStatus = TaintedStatus.UNTAINTED;
+    }
 
     @Override
     public void visit(BLangTrapExpr trapExpr) {
@@ -1236,7 +1274,10 @@ public class TaintAnalyzer extends BLangNodeVisitor {
 
         // If @untainted annotation is attached, we consider resulting value after conversion is untainted
         if (!conversionExpr.annAttachments.isEmpty()) {
-            getCurrentAnalysisState().taintedStatus = getTaintedStatusBasedOnAnnotations(conversionExpr.annAttachments);
+            TaintedStatus annotStatus = getTaintedStatusBasedOnAnnotations(conversionExpr.annAttachments);
+            if (annotStatus != TaintedStatus.IGNORED) {
+                getCurrentAnalysisState().taintedStatus = annotStatus;
+            }
         }
     }
 
@@ -1351,6 +1392,12 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangRawTemplateLiteral rawTemplateLiteral) {
+        analyzeExprList(rawTemplateLiteral.strings);
+        analyzeExprList(rawTemplateLiteral.insertions);
+    }
+
+    @Override
     public void visit(BLangLambdaFunction bLangLambdaFunction) {
         bLangLambdaFunction.function.accept(this);
         getCurrentAnalysisState().taintedStatus = TaintedStatus.UNTAINTED;
@@ -1397,6 +1444,14 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     @Override
     public void visit(BLangCheckPanickedExpr checkPanicExpr) {
         checkPanicExpr.expr.accept(this);
+    }
+
+    @Override
+    public void visit(BLangFailExpr failExpr) {
+        failExpr.expr.accept(this);
+        if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
+            getCurrentAnalysisState().returnTaintedStatus = TaintedStatus.TAINTED;
+        }
     }
 
     @Override
@@ -1471,6 +1526,11 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangIntersectionTypeNode intersectionTypeNode) {
+        /* ignore */
+    }
+
+    @Override
     public void visit(BLangTupleTypeNode tupleTypeNode) {
         /* ignore */
     }
@@ -1524,6 +1584,11 @@ public class TaintAnalyzer extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangIndexBasedAccess.BLangTupleAccessExpr arrayIndexAccessExpr) {
+        /* ignore */
+    }
+
+    @Override
+    public void visit(BLangIndexBasedAccess.BLangTableAccessExpr tableKeyAccessExpr) {
         /* ignore */
     }
 
@@ -1626,7 +1691,7 @@ public class TaintAnalyzer extends BLangNodeVisitor {
      *
      * @param exprs List of expressions to analyze.
      */
-    private void analyzeExprList(List<BLangExpression> exprs) {
+    private void analyzeExprList(List<? extends BLangExpression> exprs) {
         for (BLangExpression expr : exprs) {
             expr.accept(this);
             if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
@@ -2281,8 +2346,9 @@ public class TaintAnalyzer extends BLangNodeVisitor {
         int requiredParamCount = invokableSymbol.params.size();
 
         int namedArgsCount = countNamedArgs(invocationExpr);
-        int requiredArgsCount = invocationExpr.requiredArgs.size() - namedArgsCount;
-        int restArgsCount = invocationExpr.restArgs.size();
+        int positionalArgsCount = invocationExpr.requiredArgs.size() - namedArgsCount;
+        List<BLangExpression> restArgs = invocationExpr.restArgs;
+        int restArgsCount = restArgs.size();
 
         List<Integer> paramPositionsOfProvidedArguments =
                 getParamPositionsOfProvidedArguments(invocationExpr.requiredArgs,
@@ -2312,20 +2378,16 @@ public class TaintAnalyzer extends BLangNodeVisitor {
             }
         }
 
-        for (int reqArgIndex = 0; reqArgIndex < requiredArgsCount; reqArgIndex++) {
+        for (int reqArgIndex = 0; reqArgIndex < positionalArgsCount; reqArgIndex++) {
             BLangExpression argExpr = invocationExpr.requiredArgs.get(reqArgIndex);
             TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(reqArgIndex, invocationExpr, argExpr,
                     argTaintedStatusList);
-            if (argumentTaintReturnValue == TaintedStatus.IGNORED) {
-                invokableSymbol.taintTable = origTaintTable; // restore taint table.
+            if (restoreTableIfIgnored(invokableSymbol, origTaintTable, argumentTaintReturnValue))  {
                 return;
-            } else if (argumentTaintReturnValue == TaintedStatus.TAINTED) {
-                returnTaintedStatus = TaintedStatus.TAINTED;
             }
 
-            if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
-                updateSelfTaintedStatusToTainted(invocationExpr, paramsReceiverTainting, reqArgIndex);
-            }
+            returnTaintedStatus = updateAndGetTaintedStatus(invocationExpr, returnTaintedStatus, paramsReceiverTainting,
+                                                            reqArgIndex, argumentTaintReturnValue);
             if (stopAnalysis) {
                 break;
             }
@@ -2341,38 +2403,69 @@ public class TaintAnalyzer extends BLangNodeVisitor {
                     currentNamedArgExprName);
             TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(paramIndex, invocationExpr,
                     argExpr, argTaintedStatusList);
-            if (argumentTaintReturnValue == TaintedStatus.IGNORED) {
-                invokableSymbol.taintTable = origTaintTable; // restore taint table.
+            if (restoreTableIfIgnored(invokableSymbol, origTaintTable, argumentTaintReturnValue))  {
                 return;
-            } else if (argumentTaintReturnValue == TaintedStatus.TAINTED) {
-                returnTaintedStatus = TaintedStatus.TAINTED;
             }
-            if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
-                updateSelfTaintedStatusToTainted(invocationExpr, paramsReceiverTainting, paramIndex);
-            }
+
+            returnTaintedStatus = updateAndGetTaintedStatus(invocationExpr, returnTaintedStatus, paramsReceiverTainting,
+                                                            paramIndex, argumentTaintReturnValue);
             if (stopAnalysis) {
                 break;
             }
         }
-        for (int argIndex = 0; argIndex < restArgsCount; argIndex++) {
-            BLangExpression argExpr = invocationExpr.restArgs.get(argIndex);
-            // Pick the index of the rest parameter in the invokable definition.
-            int paramIndex = requiredParamCount;
-            TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(paramIndex, invocationExpr, argExpr,
-                    argTaintedStatusList);
-            if (argumentTaintReturnValue == TaintedStatus.IGNORED) {
-                invokableSymbol.taintTable = origTaintTable; // restore taint table.
-                return;
-            } else if (argumentTaintReturnValue == TaintedStatus.TAINTED) {
-                returnTaintedStatus = TaintedStatus.TAINTED;
+
+        if (restArgsCount == 1 && positionalArgsCount < requiredParamCount &&
+                restArgs.get(0).getKind() == NodeKind.REST_ARGS_EXPR) {
+            BLangExpression varArg = restArgs.get(0);
+            for (int paramIndex = positionalArgsCount; paramIndex < requiredParamCount; paramIndex++) {
+                TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(paramIndex, invocationExpr, varArg,
+                                                                                   argTaintedStatusList);
+                if (restoreTableIfIgnored(invokableSymbol, origTaintTable, argumentTaintReturnValue)) {
+                    return;
+                }
+
+                returnTaintedStatus = updateAndGetTaintedStatus(invocationExpr, returnTaintedStatus,
+                                                                paramsReceiverTainting, paramIndex,
+                                                                argumentTaintReturnValue);
+
+                if (stopAnalysis) {
+                    break;
+                }
             }
-            if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
-                updateSelfTaintedStatusToTainted(invocationExpr, paramsReceiverTainting, paramIndex);
+
+            if (invokableSymbol.restParam != null) {
+                int paramIndex = requiredParamCount;
+                TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(paramIndex, invocationExpr, varArg,
+                                                                                   argTaintedStatusList);
+                if (restoreTableIfIgnored(invokableSymbol, origTaintTable, argumentTaintReturnValue))  {
+                    return;
+                }
+
+                returnTaintedStatus = updateAndGetTaintedStatus(invocationExpr, returnTaintedStatus,
+                                                                paramsReceiverTainting, paramIndex,
+                                                                argumentTaintReturnValue);
             }
-            if (stopAnalysis) {
-                break;
+        } else {
+            for (int argIndex = 0; argIndex < restArgsCount; argIndex++) {
+                BLangExpression argExpr = restArgs.get(argIndex);
+                // Pick the index of the rest parameter in the invokable definition.
+                int paramIndex = requiredParamCount;
+                TaintedStatus argumentTaintReturnValue = analyzeInvocationArgument(paramIndex, invocationExpr, argExpr,
+                                                                                   argTaintedStatusList);
+                if (restoreTableIfIgnored(invokableSymbol, origTaintTable, argumentTaintReturnValue))  {
+                    return;
+                }
+
+                returnTaintedStatus = updateAndGetTaintedStatus(invocationExpr, returnTaintedStatus,
+                                                                paramsReceiverTainting, paramIndex,
+                                                                argumentTaintReturnValue);
+
+                if (stopAnalysis) {
+                    break;
+                }
             }
         }
+
         updateArgTaintedStatus(invocationExpr, argTaintedStatusList);
         invokableSymbol.taintTable = origTaintTable; // restore taint table.
 
@@ -2387,6 +2480,28 @@ public class TaintAnalyzer extends BLangNodeVisitor {
             }
         }
         getCurrentAnalysisState().taintedStatus = returnTaintedStatus;
+    }
+
+    private boolean restoreTableIfIgnored(BInvokableSymbol invokableSymbol, Map<Integer, TaintRecord> origTaintTable,
+     TaintedStatus argumentTaintReturnValue) {
+        if (argumentTaintReturnValue != TaintedStatus.IGNORED) {
+            return false;
+        }
+        invokableSymbol.taintTable = origTaintTable; // restore taint table.
+        return true;
+    }
+
+    private TaintedStatus updateAndGetTaintedStatus(BLangInvocation invocationExpr, TaintedStatus returnTaintedStatus,
+                                                    List<TaintedStatus> paramsReceiverTainting, int reqArgIndex,
+                                                    TaintedStatus argumentTaintReturnValue) {
+        if (argumentTaintReturnValue == TaintedStatus.TAINTED) {
+            returnTaintedStatus = TaintedStatus.TAINTED;
+        }
+
+        if (getCurrentAnalysisState().taintedStatus == TaintedStatus.TAINTED) {
+            updateSelfTaintedStatusToTainted(invocationExpr, paramsReceiverTainting, reqArgIndex);
+        }
+        return returnTaintedStatus;
     }
 
     private int countNamedArgs(BLangInvocation invocationExpr) {
@@ -2586,16 +2701,18 @@ public class TaintAnalyzer extends BLangNodeVisitor {
     private void updateArgTaintedStatus(BLangInvocation invocationExpr, List<TaintedStatus> argTaintedStatusList) {
         BInvokableSymbol invokableSymbol = (BInvokableSymbol) invocationExpr.symbol;
         int requiredParamCount = invokableSymbol.params.size();
-        List<BLangExpression> requiredArgs = invocationExpr.requiredArgs.stream()
+        List<BLangExpression> positionalArgs = invocationExpr.requiredArgs.stream()
                 .filter(a -> a.getKind() != NodeKind.NAMED_ARGS_EXPR).collect(Collectors.toList());
         List<BLangExpression> namedArgs = invocationExpr.requiredArgs.stream()
                 .filter(a -> a.getKind() == NodeKind.NAMED_ARGS_EXPR).collect(Collectors.toList());
         int namedArgsCount = namedArgs.size();
-        int requiredArgsCount = requiredArgs.size();
-        int restArgsCount = invocationExpr.restArgs.size();
+        int positionalArgsCount = positionalArgs.size();
 
-        for (int argIndex = 0; argIndex < requiredArgsCount; argIndex++) {
-            BLangExpression argExpr = requiredArgs.get(argIndex);
+        List<BLangExpression> restArgs = invocationExpr.restArgs;
+        int restArgsCount = restArgs.size();
+
+        for (int argIndex = 0; argIndex < positionalArgsCount; argIndex++) {
+            BLangExpression argExpr = positionalArgs.get(argIndex);
             TaintedStatus argTaintedStatus = TaintedStatus.IGNORED;
             if (!argTaintedStatusList.isEmpty()) {
                 argTaintedStatus = argTaintedStatusList.get(argIndex);
@@ -2614,11 +2731,28 @@ public class TaintAnalyzer extends BLangNodeVisitor {
             updateArgTaintedStatus(argExpr, argTaintedStatus);
         }
 
-        for (int argIndex = 0; argIndex < restArgsCount; argIndex++) {
-            BLangExpression argExpr = invocationExpr.restArgs.get(argIndex);
-            // Pick the index of the rest parameter in the invokable definition.
-            TaintedStatus argTaintedStatus = argTaintedStatusList.get(requiredParamCount);
-            updateArgTaintedStatus(argExpr, argTaintedStatus);
+        if (positionalArgsCount < requiredParamCount &&
+                restArgsCount == 1 && restArgs.get(0).getKind() == NodeKind.REST_ARGS_EXPR) {
+            // Some of the required/defaultable args have been provided for via the rest arg.
+            BLangExpression restArgExpr = restArgs.get(0);
+            for (int paramIndex = positionalArgsCount; paramIndex < requiredParamCount; paramIndex++) {
+                TaintedStatus argTaintedStatus = argTaintedStatusList.get(paramIndex);
+                if (argTaintedStatus == TaintedStatus.TAINTED) {
+                    updateArgTaintedStatus(restArgExpr, argTaintedStatus);
+                }
+            }
+
+            if (invokableSymbol.restParam != null) {
+                TaintedStatus argTaintedStatus = argTaintedStatusList.get(requiredParamCount);
+                updateArgTaintedStatus(restArgExpr, argTaintedStatus);
+            }
+        } else {
+            for (int argIndex = 0; argIndex < restArgsCount; argIndex++) {
+                BLangExpression argExpr = restArgs.get(argIndex);
+                // Pick the index of the rest parameter in the invokable definition.
+                TaintedStatus argTaintedStatus = argTaintedStatusList.get(requiredParamCount);
+                updateArgTaintedStatus(argExpr, argTaintedStatus);
+            }
         }
     }
 

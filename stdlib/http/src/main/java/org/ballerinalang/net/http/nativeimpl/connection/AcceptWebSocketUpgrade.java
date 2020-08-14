@@ -20,10 +20,10 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import org.ballerinalang.jvm.scheduling.Scheduler;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.jvm.values.connector.NonBlockingCallback;
 import org.ballerinalang.net.http.HttpConstants;
 import org.ballerinalang.net.http.websocket.WebSocketConstants;
-import org.ballerinalang.net.http.websocket.WebSocketException;
 import org.ballerinalang.net.http.websocket.WebSocketUtil;
 import org.ballerinalang.net.http.websocket.server.WebSocketConnectionManager;
 import org.ballerinalang.net.http.websocket.server.WebSocketServerService;
@@ -41,7 +41,7 @@ public class AcceptWebSocketUpgrade {
     private static final Logger log = LoggerFactory.getLogger(AcceptWebSocketUpgrade.class);
 
     public static Object acceptWebSocketUpgrade(ObjectValue httpCaller,
-                                                MapValue<String, String> headers) {
+                                                MapValue<BString, BString> headers) {
         NonBlockingCallback callback = new NonBlockingCallback(Scheduler.getStrand());
         try {
             WebSocketHandshaker webSocketHandshaker =
@@ -52,9 +52,8 @@ public class AcceptWebSocketUpgrade {
                     .getNativeData(HttpConstants.NATIVE_DATA_WEBSOCKET_CONNECTION_MANAGER);
 
             if (webSocketHandshaker == null || webSocketService == null || connectionManager == null) {
-                callback.notifyFailure(new WebSocketException(WebSocketConstants.ErrorCode.WsInvalidHandshakeError,
-                                                              "Not a WebSocket upgrade request. Cannot upgrade from " +
-                                                                      "HTTP to WS"));
+                WebSocketUtil.setNotifyFailure("Not a WebSocket upgrade request. Cannot cancel the request",
+                        callback);
                 return null;
             }
 
@@ -71,11 +70,11 @@ public class AcceptWebSocketUpgrade {
         return null;
     }
 
-    private static DefaultHttpHeaders populateAndGetHttpHeaders(MapValue<String, String> headers) {
+    private static DefaultHttpHeaders populateAndGetHttpHeaders(MapValue<BString, BString> headers) {
         DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
-        Object[] keys = headers.getKeys();
-        for (Object key : keys) {
-            httpHeaders.add(key.toString(), headers.get(key.toString()));
+        BString[] keys = headers.getKeys();
+        for (BString key : keys) {
+            httpHeaders.add(key.toString(), headers.get(key).getValue());
         }
         return httpHeaders;
     }
@@ -113,9 +112,7 @@ public class AcceptWebSocketUpgrade {
         public void onError(Throwable throwable) {
             String msg = "WebSocket handshake failed: ";
             log.error(msg, throwable);
-            callback.notifyFailure(
-                    new WebSocketException(WebSocketConstants.ErrorCode.WsInvalidHandshakeError,
-                                           msg + throwable.getMessage()));
+            WebSocketUtil.setNotifyFailure(throwable.getMessage(), callback);
         }
     }
 }

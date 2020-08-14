@@ -39,8 +39,10 @@ public class BaseTestCase {
     protected static Path singleFilesProjectPath;
     static Path basicTestsProjectPath;
     static Path mockProjectPath;
+    static Path mockProjectPath2;
     static Path serviceProjectBuildPath;
     static Path reportTestProjectPath;
+    static Path outsideTestsProjectPath;
 
     @BeforeSuite(alwaysRun = true)
     public void initialize() throws BallerinaTestException, IOException {
@@ -53,25 +55,35 @@ public class BaseTestCase {
         singleFilesProjectPath = tempProjectDirectory.resolve("single-file-tests");
         FileUtils.copyFolder(originalSingleFilesProj, singleFilesProjectPath);
 
-        Path originalMultiModulesProj = Paths.get("src", "test", "resources", "project-based-tests/basic-tests")
-                .toAbsolutePath();
+        Path originalMultiModulesProj = Paths.get("src", "test", "resources", "project-based-tests",
+                "basic-tests").toAbsolutePath();
         basicTestsProjectPath = tempProjectDirectory.resolve("basic-tests");
         FileUtils.copyFolder(originalMultiModulesProj, basicTestsProjectPath);
 
-        Path originalMockProj =
-                Paths.get("src", "test", "resources", "project-based-tests/mock-tests").toAbsolutePath();
+        Path originalMockProj = Paths.get("src", "test", "resources", "project-based-tests",
+                "mock-tests").toAbsolutePath();
         mockProjectPath = tempProjectDirectory.resolve("mock-tests");
         FileUtils.copyFolder(originalMockProj, mockProjectPath);
 
-        Path serviceProjectPath =
-                Paths.get("src", "test", "resources", "project-based-tests/services-tests").toAbsolutePath();
+        Path originalMockProj2 = Paths.get("src", "test", "resources", "project-based-tests",
+                "mocking-tests").toAbsolutePath();
+        mockProjectPath2 = tempProjectDirectory.resolve("mocking-tests");
+        FileUtils.copyFolder(originalMockProj2, mockProjectPath2);
+
+        Path serviceProjectPath = Paths.get("src", "test", "resources", "project-based-tests",
+                "services-tests").toAbsolutePath();
         serviceProjectBuildPath = tempProjectDirectory.resolve("services-tests");
         FileUtils.copyFolder(serviceProjectPath, serviceProjectBuildPath);
 
-        Path originalReportTestProj =
-                Paths.get("src", "test", "resources", "project-based-tests/test-report-tests").toAbsolutePath();
+        Path originalReportTestProj = Paths.get("src", "test", "resources", "project-based-tests",
+                "test-report-tests").toAbsolutePath();
         reportTestProjectPath = tempProjectDirectory.resolve("test-report");
         FileUtils.copyFolder(originalReportTestProj, reportTestProjectPath);
+
+        Path outsideTestsProj = Paths.get("src", "test", "resources", "project-based-tests",
+                "outside-tests").toAbsolutePath();
+        outsideTestsProjectPath = tempProjectDirectory.resolve("outside-tests");
+        FileUtils.copyFolder(outsideTestsProj, outsideTestsProjectPath);
     }
 
     @AfterSuite(alwaysRun = true)

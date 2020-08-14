@@ -33,7 +33,6 @@ import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
-import org.ballerinalang.toml.model.Manifest;
 import org.eclipse.lsp4j.debug.Breakpoint;
 import org.eclipse.lsp4j.debug.ContinuedEventArguments;
 import org.eclipse.lsp4j.debug.ExitedEventArguments;
@@ -41,7 +40,6 @@ import org.eclipse.lsp4j.debug.StoppedEventArguments;
 import org.eclipse.lsp4j.debug.StoppedEventArgumentsReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.wso2.ballerinalang.util.TomlParserUtils;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -56,23 +54,25 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.ballerinalang.debugadapter.PackageUtils.findProjectRoot;
+import static org.ballerinalang.debugadapter.utils.PackageUtils.findProjectRoot;
+import static org.ballerinalang.debugadapter.utils.PackageUtils.getRelativeSourcePath;
 
 /**
- * Listens and publishes events from JVM.
+ * Listens and publishes events through JDI.
  */
 public class EventBus {
 
-    private final Context context;
     private Path projectRoot;
-    private static final Logger LOGGER = LoggerFactory.getLogger(JBallerinaDebugServer.class);
-    private Map<String, Breakpoint[]> breakpointsList = new HashMap<>();
     private Map<Long, ThreadReference> threadsMap = new HashMap<>();
-    private AtomicInteger nextVariableReference = new AtomicInteger();
-    private List<EventRequest> stepEventRequests = new ArrayList<>();
+    private final DebugContext context;
+    private final Map<String, Breakpoint[]> breakpointsList = new HashMap<>();
+    private final AtomicInteger nextVariableReference = new AtomicInteger();
+    private final List<EventRequest> stepEventRequests = new ArrayList<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(JBallerinaDebugServer.class);
 
-    public EventBus(Context context) {
+    public EventBus(DebugContext context) {
         this.context = context;
+        this.projectRoot = null;
     }
 
     public void setBreakpointsList(String path, Breakpoint[] breakpointsList) {
@@ -82,11 +82,8 @@ public class EventBus {
         if (this.context.getDebuggee() != null) {
             // Setting breakpoints to a already running debug session.
             context.getDebuggee().eventRequestManager().deleteAllBreakpoints();
-            Arrays.stream(breakpointsList).forEach(breakpoint -> {
-                this.context.getDebuggee().allClasses().forEach(referenceType -> {
-                    this.addBreakpoint(referenceType, breakpoint);
-                });
-            });
+            Arrays.stream(breakpointsList).forEach(breakpoint -> this.context.getDebuggee().allClasses()
+                    .forEach(referenceType -> this.addBreakpoint(referenceType, breakpoint)));
         }
 
         projectRoot = findProjectRoot(Paths.get(path));
@@ -103,13 +100,8 @@ public class EventBus {
             return;
         }
         context.getDebuggee().eventRequestManager().deleteAllBreakpoints();
-        breakpointsList.forEach((filePath, breakpoints) -> {
-            Arrays.stream(breakpoints).forEach(breakpoint -> {
-                this.context.getDebuggee().allClasses().forEach(referenceType -> {
-                    this.addBreakpoint(referenceType, breakpoint);
-                });
-            });
-        });
+        breakpointsList.forEach((filePath, breakpoints) -> Arrays.stream(breakpoints).forEach(breakpoint ->
+                context.getDebuggee().allClasses().forEach(referenceType -> addBreakpoint(referenceType, breakpoint))));
     }
 
     public Map<Long, ThreadReference> getThreadsMap() {
@@ -117,9 +109,7 @@ public class EventBus {
             return null;
         }
         List<ThreadReference> threadReferences = context.getDebuggee().allThreads();
-        threadReferences.stream().forEach(threadReference -> {
-            threadsMap.put(threadReference.uniqueID(), threadReference);
-        });
+        threadReferences.forEach(threadReference -> threadsMap.put(threadReference.uniqueID(), threadReference));
         return threadsMap;
     }
 
@@ -127,9 +117,7 @@ public class EventBus {
         nextVariableReference.set(1);
         threadsMap = new HashMap<>();
         List<ThreadReference> threadReferences = context.getDebuggee().allThreads();
-        threadReferences.stream().forEach(threadReference -> {
-            threadsMap.put(threadReference.uniqueID(), threadReference);
-        });
+        threadReferences.forEach(threadReference -> threadsMap.put(threadReference.uniqueID(), threadReference));
     }
 
     public void startListening() {
@@ -251,13 +239,12 @@ public class EventBus {
             Optional<Location> firstLocation =
                     allLineLocations.stream().min(Comparator.comparingInt(Location::lineNumber));
             // We are going to add breakpoints for each and every line and continue the debugger.
-
             if (!firstLocation.isPresent()) {
                 return;
             }
             int nextStepPoint = firstLocation.get().lineNumber();
-
-            while (true) {
+            context.getDebuggee().eventRequestManager().deleteAllBreakpoints();
+            do {
                 List<Location> locations = referenceType.locationsOfLine(nextStepPoint);
                 if (locations.size() > 0) {
                     Location nextStepLocation = locations.get(0);
@@ -269,13 +256,8 @@ public class EventBus {
                     }
                 }
                 nextStepPoint++;
-                if (nextStepPoint > lastLocation.get().lineNumber()) {
-                    break;
-                }
-            }
-
+            } while (nextStepPoint <= lastLocation.get().lineNumber());
             context.getDebuggee().resume();
-
             // We are resuming all threads, we need to notify debug client about this.
             ContinuedEventArguments continuedEventArguments = new ContinuedEventArguments();
             continuedEventArguments.setAllThreadsContinued(true);
@@ -284,41 +266,6 @@ public class EventBus {
             LOGGER.error(e.getMessage());
             createStepRequest(threadId, StepRequest.STEP_OVER);
         }
-    }
-
-    /**
-     * Extracts relative path of the source file location using JDI class-reference mappings.
-     */
-    private static String getRelativeSourcePath(ReferenceType refType, Breakpoint bp)
-            throws AbsentInformationException {
-
-        List<String> sourcePaths = refType.sourcePaths("");
-        List<String> sourceNames = refType.sourceNames("");
-        if (sourcePaths.isEmpty() || sourceNames.isEmpty()) {
-            return "";
-        }
-        String sourcePath = sourcePaths.get(0);
-        String sourceName = sourceNames.get(0);
-
-        // Some additional processing is required here to rectify the source path, as the source name will be the
-        // relative path instead of the file name, for the ballerina module sources.
-        //
-        // Note: Directly using file separator as a regex will fail on windows.
-        String[] srcNames = sourceName.split(File.separatorChar == '\\' ? "\\\\" : File.separator);
-        String fileName = srcNames[srcNames.length - 1];
-        String relativePath = sourcePath.replace(sourceName, fileName);
-
-        // Replaces org name with the ballerina src directory name, as the JDI path is prepended with the org name
-        // for the bal files inside ballerina modules.
-        Path projectRoot = findProjectRoot(Paths.get(bp.getSource().getPath()));
-        if (projectRoot != null) {
-            Manifest manifest = TomlParserUtils.getManifest(projectRoot);
-            String orgName = manifest.getProject().getOrgName();
-            if (!orgName.isEmpty() && relativePath.startsWith(orgName)) {
-                relativePath = relativePath.replaceFirst(orgName, "src");
-            }
-        }
-        return relativePath;
     }
 
     /**
@@ -334,5 +281,4 @@ public class EventBus {
             return relativePath.toString();
         }
     }
-
 }

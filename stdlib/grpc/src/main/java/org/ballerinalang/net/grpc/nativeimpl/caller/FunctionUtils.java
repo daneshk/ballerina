@@ -25,6 +25,7 @@ import org.ballerinalang.jvm.observability.ObserverContext;
 import org.ballerinalang.jvm.scheduling.Scheduler;
 import org.ballerinalang.jvm.types.TypeTags;
 import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.net.grpc.GrpcConstants;
 import org.ballerinalang.net.grpc.Message;
 import org.ballerinalang.net.grpc.MessageUtils;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-import static org.ballerinalang.jvm.observability.ObservabilityConstants.TAG_KEY_HTTP_STATUS_CODE;
+import static org.ballerinalang.jvm.observability.ObservabilityConstants.PROPERTY_KEY_HTTP_STATUS_CODE;
 import static org.ballerinalang.net.grpc.GrpcConstants.MESSAGE_HEADERS;
 import static org.ballerinalang.net.grpc.MessageUtils.getMappingHttpStatusCode;
 
@@ -71,8 +72,8 @@ public class FunctionUtils {
                 if (!MessageUtils.isEmptyResponse(outputType)) {
                     responseObserver.onCompleted();
                 }
-                observerContext.ifPresent(ctx -> ctx.addTag(TAG_KEY_HTTP_STATUS_CODE,
-                        HttpResponseStatus.OK.codeAsText().toString()));
+                observerContext.ifPresent(ctx -> ctx.addProperty(PROPERTY_KEY_HTTP_STATUS_CODE,
+                        HttpResponseStatus.OK.code()));
             } catch (Exception e) {
                 LOG.error("Error while sending complete message to caller.", e);
                 return MessageUtils.getConnectorError(e);
@@ -155,7 +156,7 @@ public class FunctionUtils {
      * @param headerValues custom metadata to pass with response.
      * @return Error if there is an error while responding the caller, else returns nil
      */
-    public static Object externSendError(ObjectValue endpointClient, long statusCode, String errorMsg,
+    public static Object externSendError(ObjectValue endpointClient, long statusCode, BString errorMsg,
                                          Object headerValues) {
         StreamObserver responseObserver = MessageUtils.getResponseObserver(endpointClient);
         Optional<ObserverContext> observerContext =
@@ -169,7 +170,7 @@ public class FunctionUtils {
                 // Update response headers when request headers exists in the context.
                 HttpHeaders headers = null;
                 Message errorMessage = new Message(new StatusRuntimeException(Status.fromCodeValue((int) statusCode)
-                        .withDescription(errorMsg)));
+                        .withDescription(errorMsg.getValue())));
                 if (headerValues != null &&
                         (TypeChecker.getType(headerValues).getTag() == TypeTags.OBJECT_TYPE_TAG)) {
                     headers = (HttpHeaders) ((ObjectValue) headerValues).getNativeData(MESSAGE_HEADERS);
@@ -179,8 +180,8 @@ public class FunctionUtils {
                     headers.entries().forEach(
                             x -> observerContext.ifPresent(ctx -> ctx.addTag(x.getKey(), x.getValue())));
                 }
-                observerContext.ifPresent(ctx -> ctx.addTag(TAG_KEY_HTTP_STATUS_CODE,
-                        String.valueOf(getMappingHttpStatusCode((int) statusCode))));
+                int mappedStatusCode = getMappingHttpStatusCode((int) statusCode);
+                observerContext.ifPresent(ctx -> ctx.addProperty(PROPERTY_KEY_HTTP_STATUS_CODE, mappedStatusCode));
                 responseObserver.onError(errorMessage);
             } catch (Exception e) {
                 LOG.error("Error while sending error to caller.", e);

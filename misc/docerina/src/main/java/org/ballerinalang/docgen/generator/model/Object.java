@@ -15,7 +15,8 @@
  */
 package org.ballerinalang.docgen.generator.model;
 
-import java.util.ArrayList;
+import com.google.gson.annotations.Expose;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,29 +26,37 @@ import java.util.stream.Collectors;
  */
 public class Object extends Construct {
 
-    public List<DefaultableVarible> fields = new ArrayList<>();
-    public List<Function> methods = new ArrayList<>();
+    @Expose
+    public List<DefaultableVariable> fields;
+    @Expose
+    public List<Function> methods;
+    @Expose
     public Function initMethod;
-    public List<Function> otherMethods = new ArrayList<>();
+    @Expose
+    public List<Function> otherMethods;
+    @Expose
+    public boolean isAnonymous;
 
-    public Object(String name, String description, List<DefaultableVarible> fields, List<Function> methods) {
-        super(name, description);
+    public Object(String name, String description, boolean isDeprecated, List<DefaultableVariable> fields,
+            List<Function> methods, boolean isAnonymous) {
+        super(name, description, isDeprecated);
         this.fields = fields;
         this.methods = methods;
         Optional<Function> initMethod = getInitMethod(methods);
         this.initMethod = initMethod.isPresent() ? getInitMethod(methods).get() : null;
         this.otherMethods = getOtherMethods(methods);
+        this.isAnonymous = isAnonymous;
     }
 
     public Optional<Function> getInitMethod(List<Function> methods) {
         return methods.stream()
-                .filter(function -> function.name.equals("__init"))
+                .filter(function -> function.name.equals("init"))
                 .findFirst();
     }
 
     public List<Function> getOtherMethods(List<Function> methods) {
         return methods.stream()
-                .filter(function -> !function.name.equals("__init"))
+                .filter(function -> !function.name.equals("init"))
                 .collect(Collectors.toList());
     }
 

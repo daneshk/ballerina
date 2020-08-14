@@ -23,12 +23,20 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentManager;
 import org.ballerinalang.langserver.compiler.DocumentServiceKeys;
 import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.TextDocumentEdit;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
+import org.eclipse.lsp4j.WorkspaceEdit;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +48,11 @@ import java.util.Optional;
 public abstract class AbstractCodeActionProvider implements LSCodeActionProvider {
     private List<CodeActionNodeType> codeActionNodeTypes;
     private final boolean isNodeTypeBased;
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 
     /**
      * Create a diagnostic based code action provider.
@@ -159,6 +172,7 @@ public abstract class AbstractCodeActionProvider implements LSCodeActionProvider
 //            Lambda Functions: function() returns int { return 1; };
 //            Type Casts: <int>1.1;
 //            Streaming From Clauses: from var person in personList;
+        position = new Position(position.getLine(), position.getCharacter() + 1);
         String content = diagnosedContent.trim();
         int pointer = content.length();
         int count = 0;
@@ -199,6 +213,10 @@ public abstract class AbstractCodeActionProvider implements LSCodeActionProvider
         }
         // Streaming `from` clause
         if (content.startsWith("from ")) {
+            return position;
+        }
+        // Streaming `start` clause
+        if (content.startsWith("start ")) {
             return position;
         }
         int pendingLParenthesis = 0;
@@ -253,8 +271,25 @@ public abstract class AbstractCodeActionProvider implements LSCodeActionProvider
         // Thus we offset into last
         int bal = diagnosedContent.length() - count;
         if (bal > 0) {
-            position = new Position(position.getLine(), position.getCharacter() + bal + 1);
+            position.setCharacter(position.getCharacter() + bal + 1);
         }
         return position;
+    }
+
+    /**
+     * Returns a QuickFix Code action.
+     *
+     * @param commandTitle title of the code action
+     * @param uri          uri
+     * @return {@link CodeAction}
+     */
+    protected static CodeAction createQuickFixCodeAction(String commandTitle, List<TextEdit> edits, String uri) {
+        List<Diagnostic> diagnostics = new ArrayList<>();
+        CodeAction action = new CodeAction(commandTitle);
+        action.setKind(CodeActionKind.QuickFix);
+        action.setEdit(new WorkspaceEdit(Collections.singletonList(Either.forLeft(
+                new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, null), edits)))));
+        action.setDiagnostics(diagnostics);
+        return action;
     }
 }

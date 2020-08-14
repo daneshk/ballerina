@@ -39,6 +39,8 @@ import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 import org.wso2.ballerinalang.compiler.tree.BLangService;
 import org.wso2.ballerinalang.compiler.tree.BLangSimpleVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangTypeDefinition;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangStringTemplateLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeInit;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangCompoundAssignment;
@@ -76,10 +78,10 @@ public class SignatureTreeVisitor extends LSNodeVisitor {
      * Public constructor.
      * @param context    Document service context for the signature operation
      */
-    public SignatureTreeVisitor(LSContext context) {
+    public SignatureTreeVisitor(LSContext context, Position position) {
         blockPositionStack = new ArrayDeque<>();
         lsContext = context;
-        cursorPosition = context.get(DocumentServiceKeys.POSITION_KEY).getPosition();
+        cursorPosition = position;
 
         CompilerContext compilerContext = context.get(DocumentServiceKeys.COMPILER_CONTEXT_KEY);
         symTable = SymbolTable.getInstance(compilerContext);
@@ -125,6 +127,9 @@ public class SignatureTreeVisitor extends LSNodeVisitor {
         BSymbol funcSymbol = funcNode.symbol;
         SymbolEnv funcEnv = SymbolEnv.createFunctionEnv(funcNode, funcSymbol.scope, symbolEnv);
         blockPositionStack.push(funcNode.pos);
+        for (BLangAnnotationAttachment annAttachments : funcNode.annAttachments) {
+            this.acceptNode(annAttachments, funcEnv);
+        }
         this.acceptNode(funcNode.body, funcEnv);
         blockPositionStack.pop();
         // Process workers
@@ -227,12 +232,6 @@ public class SignatureTreeVisitor extends LSNodeVisitor {
         this.blockPositionStack.push(transactionNode.transactionBody.pos);
         this.acceptNode(transactionNode.transactionBody, symbolEnv);
         this.blockPositionStack.pop();
-
-        if (transactionNode.onRetryBody != null) {
-            this.blockPositionStack.push(transactionNode.onRetryBody.pos);
-            this.acceptNode(transactionNode.onRetryBody, symbolEnv);
-            this.blockPositionStack.pop();
-        }
     }
 
     @Override
@@ -253,6 +252,15 @@ public class SignatureTreeVisitor extends LSNodeVisitor {
         if (variable.expr != null) {
             this.blockPositionStack.push(variable.expr.pos);
             acceptNode(variable.expr, symbolEnv);
+            this.blockPositionStack.pop();
+        }
+    }
+
+    @Override
+    public void visit(BLangStringTemplateLiteral stringTemplateLiteral) {
+        for (BLangExpression expr : stringTemplateLiteral.exprs) {
+            this.blockPositionStack.push(expr.pos);
+            acceptNode(expr, symbolEnv);
             this.blockPositionStack.pop();
         }
     }

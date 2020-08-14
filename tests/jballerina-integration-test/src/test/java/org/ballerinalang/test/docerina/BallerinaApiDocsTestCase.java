@@ -51,7 +51,7 @@ public class BallerinaApiDocsTestCase extends BaseTest {
         PrintStream out = System.out;
         List<String> skipModules = new ArrayList<>(
                 Arrays.asList("ldap", "lang.__internal", "lang.annotations", "mysql", "sql", "testobserve",
-                        "java.jdbc"));
+                        "java.jdbc", "lang.query", "lang.typedesc"));
         Path birCacheBallerinaDir = Paths.get(balServer.getServerHome(), "bir-cache", "ballerina");
         File[] birCacheBalDirFiles = new File(String.valueOf(birCacheBallerinaDir)).listFiles();
 
@@ -89,6 +89,5 @@ public class BallerinaApiDocsTestCase extends BaseTest {
         Assert.assertTrue(Files.exists(recordsDir));
         Assert.assertTrue(Files.exists(Paths.get(String.valueOf(recordsDir), "BasicAuthConfig.html")));
         Assert.assertTrue(Files.exists(Paths.get(String.valueOf(recordsDir), "Credential.html")));
-        Assert.assertTrue(Files.exists(Paths.get(String.valueOf(recordsDir), "Detail.html")));
     }
 }

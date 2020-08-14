@@ -15,8 +15,8 @@
  */
 package org.ballerinalang.langserver.util.references;
 
+import io.ballerinalang.compiler.syntax.tree.Token;
 import org.ballerinalang.langserver.common.LSNodeVisitor;
-import org.ballerinalang.langserver.common.constants.NodeContextKeys;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.LSContext;
 import org.ballerinalang.langserver.compiler.DocumentServiceKeys;
@@ -46,7 +46,13 @@ import org.wso2.ballerinalang.compiler.tree.BLangTypeDefinition;
 import org.wso2.ballerinalang.compiler.tree.BLangXMLNS;
 import org.wso2.ballerinalang.compiler.tree.clauses.BLangDoClause;
 import org.wso2.ballerinalang.compiler.tree.clauses.BLangFromClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangJoinClause;
 import org.wso2.ballerinalang.compiler.tree.clauses.BLangLetClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangLimitClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangOnClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangOnConflictClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangOrderByClause;
+import org.wso2.ballerinalang.compiler.tree.clauses.BLangOrderKey;
 import org.wso2.ballerinalang.compiler.tree.clauses.BLangSelectClause;
 import org.wso2.ballerinalang.compiler.tree.clauses.BLangWhereClause;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangAnnotAccessExpr;
@@ -116,6 +122,7 @@ import org.wso2.ballerinalang.compiler.tree.types.BLangConstrainedType;
 import org.wso2.ballerinalang.compiler.tree.types.BLangErrorType;
 import org.wso2.ballerinalang.compiler.tree.types.BLangFiniteTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangFunctionTypeNode;
+import org.wso2.ballerinalang.compiler.tree.types.BLangIntersectionTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangObjectTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangRecordTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangStreamType;
@@ -155,14 +162,18 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     private List<BLangTypeDefinition> anonTypeDefinitions = new ArrayList<>();
     private HashMap<BSymbol, DiagnosticPos> workerVarDefMap = new HashMap<>();
 
-    public SymbolReferenceFindingVisitor(LSContext lsContext, String pkgName, boolean currentCUnitMode) {
+    public SymbolReferenceFindingVisitor(LSContext lsContext, Token tokenAtCursor, String pkgName,
+                                         boolean currentCUnitMode) {
         this.lsContext = lsContext;
 
         Boolean bDoNotSkipNullSymbols = lsContext.get(ReferencesKeys.DO_NOT_SKIP_NULL_SYMBOLS);
         this.doNotSkipNullSymbols = (bDoNotSkipNullSymbols == null) ? false : bDoNotSkipNullSymbols;
 
-        this.symbolReferences = lsContext.get(ReferencesKeys.REFERENCES_KEY);
-        this.tokenName = lsContext.get(NodeContextKeys.NODE_NAME_KEY);
+        //TODO: Check can exisits previous reference
+        this.symbolReferences = new SymbolReferencesModel();
+        lsContext.put(ReferencesKeys.REFERENCES_KEY, this.symbolReferences);
+
+        this.tokenName = tokenAtCursor.text();
         TextDocumentPositionParams position = lsContext.get(DocumentServiceKeys.POSITION_KEY);
         if (position == null) {
             throw new IllegalStateException("Position information not available in the Operation Context");
@@ -173,8 +184,16 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
         this.pkgName = pkgName;
     }
 
-    public SymbolReferenceFindingVisitor(LSContext lsContext, String pkgName) {
-        this(lsContext, pkgName, false);
+    public SymbolReferenceFindingVisitor(LSContext lsContext, Token tokenAtCursor, String pkgName) {
+        this(lsContext, tokenAtCursor, pkgName, false);
+    }
+
+    public SymbolReferencesModel accept(BLangCompilationUnit compilationUnit) {
+        if (compilationUnit == null) {
+            return null;
+        }
+        visit(compilationUnit);
+        return this.symbolReferences;
     }
 
     @Override
@@ -245,7 +264,7 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     public void visit(BLangFunction funcNode) {
         boolean isWorker = funcNode.flagSet.contains(Flag.WORKER);
         String funcName = isWorker ? funcNode.defaultWorkerName.value : funcNode.name.value;
-        if (funcName.equals(this.tokenName) || ("__init".equals(funcName) && "new".equals(this.tokenName))) {
+        if (funcName.equals(this.tokenName) || ("init".equals(funcName) && "new".equals(this.tokenName))) {
             /*
             If the go-to definition is triggered for the new keyword and there is an init function defined,
             then jump to the init function
@@ -343,11 +362,7 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
 
     @Override
     public void visit(BLangTransaction transactionNode) {
-        this.acceptNode(transactionNode.retryCount);
         this.acceptNode(transactionNode.transactionBody);
-        this.acceptNode(transactionNode.onRetryBody);
-        this.acceptNode(transactionNode.committedBody);
-        this.acceptNode(transactionNode.abortedBody);
     }
 
     @Override
@@ -406,7 +421,7 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     @Override
     public void visit(BLangErrorVariable bLangErrorVariable) {
         this.acceptNode(bLangErrorVariable.typeNode);
-        this.acceptNode(bLangErrorVariable.reason);
+        this.acceptNode(bLangErrorVariable.message);
         for (BLangErrorVariable.BLangErrorDetailEntry bLangErrorDetailEntry : bLangErrorVariable.detail) {
             this.acceptNode(bLangErrorDetailEntry.valueBindingPattern);
         }
@@ -597,6 +612,13 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     }
 
     @Override
+    public void visit(BLangIntersectionTypeNode intersectionTypeNode) {
+        for (BLangType constituentTypeNode : intersectionTypeNode.constituentTypeNodes) {
+            acceptNode(constituentTypeNode);
+        }
+    }
+
+    @Override
     public void visit(BLangObjectTypeNode objectTypeNode) {
         objectTypeNode.typeRefs.forEach(this::addObjectReferenceType);
         objectTypeNode.fields.forEach(this::acceptNode);
@@ -626,7 +648,6 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
 
     @Override
     public void visit(BLangErrorType errorType) {
-        this.acceptNode(errorType.reasonType);
         this.acceptNode(errorType.detailType);
     }
 
@@ -884,25 +905,19 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     @Override
     public void visit(BLangErrorVarRef varRefExpr) {
         this.acceptNode(varRefExpr.typeNode);
-        this.acceptNode(varRefExpr.reason);
+        this.acceptNode(varRefExpr.message);
         varRefExpr.detail.forEach(bLangNamedArgsExpression -> this.acceptNode(bLangNamedArgsExpression.expr));
         this.acceptNode(varRefExpr.restVar);
     }
 
     @Override
     public void visit(BLangQueryExpr queryExpr) {
-        queryExpr.fromClauseList.forEach(this::acceptNode);
-        queryExpr.letClausesList.forEach(this::acceptNode);
-        this.acceptNode(queryExpr.selectClause);
-        queryExpr.whereClauseList.forEach(this::acceptNode);
+        queryExpr.getQueryClauses().forEach(this::acceptNode);
     }
 
     @Override
     public void visit(BLangQueryAction queryAction) {
-        queryAction.fromClauseList.forEach(this::acceptNode);
-        queryAction.whereClauseList.forEach(this::acceptNode);
-        queryAction.getLetClauseNode().forEach(this::acceptNode);
-        this.acceptNode(queryAction.doClause);
+        queryAction.getQueryClauses().forEach(this::acceptNode);
     }
 
     @Override
@@ -917,6 +932,15 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     }
 
     @Override
+    public void visit(BLangJoinClause joinClause) {
+        this.acceptNode(joinClause.collection);
+        this.acceptNode((BLangNode) joinClause.variableDefinitionNode);
+        if (joinClause.onClause != null) {
+            acceptNode((BLangNode) joinClause.onClause);
+        }
+    }
+
+    @Override
     public void visit(BLangSelectClause selectClause) {
         this.acceptNode(selectClause.expression);
     }
@@ -924,6 +948,32 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     @Override
     public void visit(BLangWhereClause whereClause) {
         this.acceptNode(whereClause.expression);
+    }
+
+    @Override
+    public void visit(BLangOnClause onClause) {
+        this.acceptNode(onClause.expression);
+    }
+
+    @Override
+    public void visit(BLangOrderKey orderKeyClause) {
+        this.acceptNode(orderKeyClause.expression);
+    }
+
+    @Override
+    public void visit(BLangOrderByClause orderByClause) {
+        orderByClause.orderByKeyList
+                .forEach(bLangOrderKeyClause -> this.acceptNode((BLangNode) bLangOrderKeyClause));
+    }
+
+    @Override
+    public void visit(BLangOnConflictClause onConflictClause) {
+        this.acceptNode(onConflictClause.expression);
+    }
+
+    @Override
+    public void visit(BLangLimitClause limitClause) {
+        this.acceptNode(limitClause.expression);
     }
 
     @Override
@@ -945,6 +995,16 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
         this.acceptNode(streamType.error);
     }
 
+    @Override
+    public void visit(BLangInvocation.BLangActionInvocation actionInvocationExpr) {
+        if (actionInvocationExpr.name.getValue().equals(this.tokenName)) {
+            DiagnosticPos pos = actionInvocationExpr.name.getPosition();
+            this.addSymbol(actionInvocationExpr, actionInvocationExpr.symbol, false, pos);
+        }
+        this.acceptNode(actionInvocationExpr.expr);
+        actionInvocationExpr.argExprs.forEach(this::acceptNode);
+    }
+
     protected void acceptNode(BLangNode node) {
         if (node == null) {
             return;
@@ -962,13 +1022,13 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     }
 
     protected void addSymbol(BLangNode bLangNode, BSymbol bSymbol, boolean isDefinition, DiagnosticPos position) {
-        Optional<SymbolReferencesModel.Reference> symbolAtCursor = this.symbolReferences.getReferenceAtCursor();
+        SymbolReferencesModel.Reference symbolAtCursor = this.symbolReferences.getReferenceAtCursor();
         // Here, tsymbol check has been added in order to support the finite types
         // TODO: Handle finite type. After the fix check if it falsely capture symbols in other files with same name
         if (bSymbol == null && !this.doNotSkipNullSymbols) {
             return;
         }
-        if ((!this.currentCUnitMode && symbolAtCursor.isPresent() && (symbolAtCursor.get().getSymbol() != bSymbol))) {
+        if ((!this.currentCUnitMode && (symbolAtCursor.getSymbol() != bSymbol))) {
             return;
         }
         DiagnosticPos zeroBasedPos = CommonUtil.toZeroBasedPosition(position);
@@ -1013,7 +1073,11 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
     
     private Optional<BLangFunction> getWorkerFunctionFromPosition(DiagnosticPos position) {
         return this.workerLambdas.stream()
-                .filter(function -> function.defaultWorkerName.getPosition() == position)
+                .filter(function -> {
+                    DiagnosticPos namePosition = function.defaultWorkerName.getPosition();
+                    return namePosition.sLine == position.sLine && namePosition.eLine == position.eLine
+                            && namePosition.sCol == position.sCol && namePosition.eCol == position.eCol;
+                })
                 .findAny();
     }
     
@@ -1033,7 +1097,11 @@ public class SymbolReferenceFindingVisitor extends LSNodeVisitor {
 
     private BSymbol getWorkerSymbolForPosition(DiagnosticPos pos) {
         return this.workerVarDefMap.entrySet().stream()
-                .filter(entry -> entry.getValue() == pos)
+                .filter(workerPos -> {
+                    DiagnosticPos posValue = workerPos.getValue();
+                    return posValue.sLine == pos.sLine && posValue.eLine == pos.eLine
+                            && posValue.sCol == pos.sCol && posValue.eCol == pos.eCol;
+                })
                 .findAny()
                 .map(Map.Entry::getKey)
                 .orElse(null);

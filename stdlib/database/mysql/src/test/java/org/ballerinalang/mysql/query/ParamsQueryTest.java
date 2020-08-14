@@ -40,7 +40,7 @@ import java.text.DecimalFormat;
 import java.util.LinkedHashMap;
 
 /**
- * This test class verifies the behaviour of the ParameterizedString passed into the testQuery operation.
+ * This test class verifies the behaviour of the ParameterizedQuery passed into the testQuery operation.
  *
  * @since 1.3.0
  */
@@ -145,18 +145,6 @@ public class ParamsQueryTest {
     }
 
     @Test
-    public void testQueryTypeLongVarcharStringParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeLongVarcharStringParam");
-        validateDataTableResult(returns);
-    }
-
-    @Test
-    public void testQueryTypeLongNVarcharStringParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeLongNVarcharStringParam");
-        validateDataTableResult(returns);
-    }
-
-    @Test
     public void testQueryTypeNVarCharStringParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeNVarCharStringParam");
         validateDataTableResult(returns);
@@ -180,12 +168,6 @@ public class ParamsQueryTest {
     }
 
     @Test
-    public void testQueryTypBooleanIntParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypBooleanIntParam");
-        validateDataTableResult(returns);
-    }
-
-    @Test
     public void testQueryTypBitIntParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTypBitIntParam");
         validateDataTableResult(returns);
@@ -201,16 +183,7 @@ public class ParamsQueryTest {
     public void testQueryTypBitInvalidIntParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTypBitInvalidIntParam");
         Assert.assertEquals(returns[0].getType().getTag(), TypeTags.ERROR);
-        Assert.assertTrue(((BMap) ((BError) returns[0]).getDetails()).get(SQLDBUtils.SQL_ERROR_MESSAGE)
-                .stringValue().contains("Only 1 or 0 can be passed for BIT"));
-    }
-
-    @Test
-    public void testQueryTypBitDoubleParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypBitDoubleParam");
-        Assert.assertEquals(returns[0].getType().getTag(), TypeTags.ERROR);
-        Assert.assertTrue(((BMap) ((BError) returns[0]).getDetails()).get(SQLDBUtils.SQL_ERROR_MESSAGE)
-                .stringValue().contains("Invalid parameter :java.lang.Double is passed as value for sql type : BIT"));
+        Assert.assertTrue(((BError) returns[0]).getMessage().contains("Only 1 or 0 can be passed"));
     }
 
     @Test
@@ -232,6 +205,12 @@ public class ParamsQueryTest {
     }
 
     @Test
+    public void testQueryTypeMediumIntIntParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeMediumIntIntParam");
+        validateNumericTableResult(returns);
+    }
+
+    @Test
     public void testQueryTypeBigIntIntParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeBigIntIntParam");
         validateNumericTableResult(returns);
@@ -249,7 +228,7 @@ public class ParamsQueryTest {
         SQLDBUtils.assertNotError(returns[0]);
         Assert.assertTrue(returns[0] instanceof BMap);
         LinkedHashMap result = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(result.size(), 10);
+        Assert.assertEquals(result.size(), 11);
         Assert.assertEquals(result.get("id"), new BInteger(2));
         Assert.assertEquals(((BFloat) result.get("float_type")).floatValue(), 1234.0);
     }
@@ -284,7 +263,7 @@ public class ParamsQueryTest {
         SQLDBUtils.assertNotError(returns[0]);
         Assert.assertTrue(returns[0] instanceof BMap);
         LinkedHashMap result = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(result.size(), 10);
+        Assert.assertEquals(result.size(), 11);
         Assert.assertEquals(result.get("id"), new BInteger(2));
         Assert.assertEquals(((BFloat) result.get("float_type")).floatValue(), 1234.0);
     }
@@ -326,14 +305,23 @@ public class ParamsQueryTest {
     }
 
     @Test
-    public void testQueryTypeLongVarBinaryReadableByteChannelParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeLongVarBinaryReadableByteChannelParam");
+    public void testQueryTypeTinyBlobByteParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeTinyBlobByteParam");
         validateComplexTableResult(returns);
     }
-
     @Test
     public void testQueryTypeBlobByteParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeBlobByteParam");
+        validateComplexTableResult(returns);
+    }
+    @Test
+    public void testQueryTypeMediumBlobByteParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeMediumBlobByteParam");
+        validateComplexTableResult(returns);
+    }
+    @Test
+    public void testQueryTypeLongBlobByteParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeLongBlobByteParam");
         validateComplexTableResult(returns);
     }
 
@@ -344,20 +332,38 @@ public class ParamsQueryTest {
     }
 
     @Test
-    public void testQueryTypeClobStringParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeClobStringParam");
+    public void testQueryTypeTinyTextStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeTinyTextStringParam");
         validateComplexTableResult(returns);
     }
 
     @Test
-    public void testQueryTypeClobReadableCharChannelParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeClobReadableCharChannelParam");
+    public void testQueryTypeTextStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeTextStringParam");
         validateComplexTableResult(returns);
     }
 
     @Test
-    public void testQueryTypeNClobReadableCharChannelParam() {
-        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeNClobReadableCharChannelParam");
+    public void testQueryTypeMediumTextStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeMediumTextStringParam");
+        validateComplexTableResult(returns);
+    }
+
+    @Test
+    public void testQueryTypeLongTextStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeLongTextStringParam");
+        validateComplexTableResult(returns);
+    }
+
+    @Test
+    public void testQueryTypeTextReadableCharChannelParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeTextReadableCharChannelParam");
+        validateComplexTableResult(returns);
+    }
+
+    @Test
+    public void testQueryTypeNTextReadableCharChannelParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryTypeNTextReadableCharChannelParam");
         validateComplexTableResult(returns);
     }
 
@@ -383,8 +389,7 @@ public class ParamsQueryTest {
     public void testQueryTimeDateStringInvalidParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTimeStringInvalidParam");
         Assert.assertEquals(returns[0].getType().getTag(), TypeTags.ERROR);
-        Assert.assertTrue(((BMap) ((BError) returns[0]).getDetails()).get(SQLDBUtils.SQL_ERROR_MESSAGE)
-                .stringValue().contains("IllegalArgumentException"));
+        Assert.assertTrue(((BError) returns[0]).getMessage().contains("IllegalArgumentException"));
     }
 
     @Test
@@ -397,9 +402,57 @@ public class ParamsQueryTest {
     public void testQueryTimestampDateStringInvalidParam() {
         BValue[] returns = BRunUtil.invokeFunction(result, "queryTimestampStringInvalidParam");
         Assert.assertEquals(returns[0].getType().getTag(), TypeTags.ERROR);
-        Assert.assertTrue(((BMap) ((BError) returns[0]).getDetails()).get(SQLDBUtils.SQL_ERROR_MESSAGE)
-                .stringValue().contains(" Timestamp format must be yyyy-mm-dd hh:mm:ss"));
+        Assert.assertTrue(((BError) returns[0]).getMessage().contains(" Timestamp format must be yyyy-mm-dd hh:mm:ss"));
     }
+
+    @Test
+    public void testQueryEnumStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryEnumStringParam");
+        validateEnumTable(returns);
+    }
+
+    @Test
+    public void testQueryEnumStringParam2() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryEnumStringParam2");
+        validateEnumTable(returns);
+    }
+
+    @Test
+    public void testQuerySetStringParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "querySetStringParam");
+        validateSetTable(returns);
+    }
+
+    @Test
+    public void testQueryGeoParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryGeoParam");
+        validateGeoTable(returns);
+    }
+
+    @Test
+    public void testQueryGeoParam2() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryGeoParam2");
+        validateGeoTable(returns);
+    }
+
+    @Test
+    public void testQueryJsonParam() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryJsonParam");
+        validateJsonTable(returns);
+    }
+
+    @Test
+    public void testQueryJsonParam2() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryJsonParam2");
+        validateJsonTable(returns);
+    }
+
+    @Test
+    public void testQueryJsonParam3() {
+        BValue[] returns = BRunUtil.invokeFunction(result, "queryJsonParam3");
+        validateJsonTable(returns);
+    }
+
 
     private void validateDataTableResult(BValue[] returns) {
         SQLDBUtils.assertNotError(returns[0]);
@@ -421,9 +474,9 @@ public class ParamsQueryTest {
         SQLDBUtils.assertNotError(returns[0]);
         Assert.assertTrue(returns[0] instanceof BMap);
         LinkedHashMap result = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(result.size(), 5);
+        Assert.assertEquals(result.size(), 11);
         Assert.assertEquals(((BInteger) result.get("row_id")).intValue(), 1);
-        Assert.assertEquals(result.get("clob_type").toString(), "very long text");
+        Assert.assertEquals(result.get("text_type").toString(), "very long text");
     }
 
     private void validateDateTimeTypesTableResult(BValue[] returns) {
@@ -439,11 +492,12 @@ public class ParamsQueryTest {
         SQLDBUtils.assertNotError(returns[0]);
         Assert.assertTrue(returns[0] instanceof BMap);
         LinkedHashMap result = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(result.size(), 10);
+        Assert.assertEquals(result.size(), 11);
         Assert.assertEquals(result.get("id"), new BInteger(1));
         Assert.assertEquals(result.get("int_type"), new BInteger(2147483647));
         Assert.assertEquals(result.get("bigint_type"), new BInteger(9223372036854774807L));
         Assert.assertEquals(result.get("smallint_type"), new BInteger(32767));
+        Assert.assertEquals(result.get("mediumint_type"), new BInteger(8388607));
         Assert.assertEquals(result.get("tinyint_type"), new BInteger(127));
         Assert.assertEquals(result.get("bit_type"), new BBoolean(true));
         Assert.assertEquals(((BDecimal) result.get("decimal_type")).value().doubleValue(), 1234.567);
@@ -452,4 +506,50 @@ public class ParamsQueryTest {
         Assert.assertEquals(df.format(((BFloat) result.get("float_type")).floatValue()), "1234.57");
         Assert.assertEquals(df.format(((BFloat) result.get("real_type")).floatValue()), "1234.567");
     }
+
+    private void validateEnumTable(BValue[] returns) {
+        String id = "id";
+        String enumType = "enum_type";
+        SQLDBUtils.assertNotError(returns[0]);
+        Assert.assertTrue(returns[0] instanceof BMap);
+        LinkedHashMap result = ((BMap) returns[0]).getMap();
+        Assert.assertEquals(result.size(), 2);
+        Assert.assertEquals(((BInteger) result.get(id)).intValue(), 1);
+        Assert.assertEquals(result.get(enumType).toString(), "doctor");
+    }
+
+    private void validateSetTable(BValue[] returns) {
+        String id = "row_id";
+        String setType = "set_type";
+        SQLDBUtils.assertNotError(returns[0]);
+        Assert.assertTrue(returns[0] instanceof BMap);
+        LinkedHashMap result = ((BMap) returns[0]).getMap();
+        Assert.assertEquals(result.size(), 2);
+        Assert.assertEquals(((BInteger) result.get(id)).intValue(), 1);
+        Assert.assertEquals(result.get(setType).toString(), "a,d");
+    }
+
+    private void validateGeoTable(BValue[] returns) {
+        String id = "id";
+        String type = "geomText";
+        SQLDBUtils.assertNotError(returns[0]);
+        Assert.assertTrue(returns[0] instanceof BMap);
+        LinkedHashMap result = ((BMap) returns[0]).getMap();
+        Assert.assertEquals(result.size(), 2);
+        Assert.assertEquals(((BInteger) result.get(id)).intValue(), 1);
+        Assert.assertEquals(result.get(type).toString(), "POINT(7 52)");
+    }
+
+    private void validateJsonTable(BValue[] returns) {
+        String id = "id";
+        String type = "json_type";
+        SQLDBUtils.assertNotError(returns[0]);
+        Assert.assertTrue(returns[0] instanceof BMap);
+        LinkedHashMap result = ((BMap) returns[0]).getMap();
+        Assert.assertEquals(result.size(), 2);
+        Assert.assertEquals(((BInteger) result.get(id)).intValue(), 1);
+        String jsonString = result.get(type).toString();
+        Assert.assertTrue(jsonString.equalsIgnoreCase("{\"id\": 100, \"name\": \"Joe\", \"groups\": \"[2,5]\"}"));
+    }
+
 }

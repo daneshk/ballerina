@@ -25,6 +25,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.types.BField;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFiniteType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFutureType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BHandleType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BIntersectionType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BMapType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BObjectType;
@@ -38,6 +39,7 @@ import org.wso2.ballerinalang.compiler.util.TypeTags;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import static org.wso2.ballerinalang.compiler.bir.emit.EmitterUtils.emitFlags;
 import static org.wso2.ballerinalang.compiler.bir.emit.EmitterUtils.emitLBreaks;
@@ -66,6 +68,8 @@ class TypeEmitter {
                 return "any";
             case TypeTags.NIL:
                 return "()";
+            case TypeTags.NEVER:
+                return "never";
             case TypeTags.BYTE:
                 return "byte";
             case TypeTags.FLOAT:
@@ -74,6 +78,8 @@ class TypeEmitter {
                 return "string";
             case TypeTags.ANYDATA:
                 return "anydata";
+            case TypeTags.READONLY:
+                return "readonly";
             case TypeTags.NONE:
                 return "none";
             case TypeTags.JSON:
@@ -84,6 +90,8 @@ class TypeEmitter {
                 return "decimal";
             case TypeTags.UNION:
                 return emitBUnionType((BUnionType) bType, tabs);
+            case TypeTags.INTERSECTION:
+                return emitBIntersectionType((BIntersectionType) bType, tabs);
             case TypeTags.TUPLE:
                 return emitBTupleType((BTupleType) bType, tabs);
             case TypeTags.INVOKABLE:
@@ -131,6 +139,15 @@ class TypeEmitter {
             }
         }
         return unionStr.toString();
+    }
+
+    private static String emitBIntersectionType(BIntersectionType bType, int tabs) {
+
+        StringJoiner strJoiner = new StringJoiner(" & ");
+        for (BType type : bType.getConstituentTypes()) {
+            strJoiner.add(emitTypeRef(type, tabs));
+        }
+        return strJoiner.toString();
     }
 
     private static String emitBTupleType(BTupleType bType, int tabs) {
@@ -195,7 +212,7 @@ class TypeEmitter {
         recordStr.append(emitSpaces(1));
         recordStr.append("{");
         recordStr.append(emitLBreaks(1));
-        for (BField bField : bType.fields) {
+        for (BField bField : bType.fields.values()) {
             if (bField != null) {
                 recordStr.append(emitTabs(tabs + 1));
                 String flags = emitFlags(bField.type.flags);
@@ -220,7 +237,7 @@ class TypeEmitter {
         str.append(emitSpaces(1));
         str.append("{");
         str.append(emitLBreaks(1));
-        for (BField bField : bType.fields) {
+        for (BField bField : bType.fields.values()) {
             if (bField != null) {
                 str.append(emitTabs(tabs + 1));
                 String flags = emitFlags(bField.type.flags);
@@ -283,9 +300,6 @@ class TypeEmitter {
     private static String emitBErrorType(BErrorType bType, int tabs) {
 
         String errStr = "error{";
-        errStr += emitTypeRef(bType.reasonType, tabs);
-        errStr += ",";
-        errStr += emitSpaces(1);
         errStr += emitTypeRef(bType.detailType, tabs);
         errStr += "}";
         return errStr;
@@ -295,7 +309,7 @@ class TypeEmitter {
 
         String str = "future";
         str += "<";
-        str += emitTypeRef(bType.getReturnType(), 0);
+        str += emitTypeRef(bType.getConstraint(), 0);
         str += ">";
         return str;
     }

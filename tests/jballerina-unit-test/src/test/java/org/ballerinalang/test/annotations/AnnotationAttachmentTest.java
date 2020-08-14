@@ -27,15 +27,12 @@ import org.wso2.ballerinalang.compiler.tree.BLangExternalFunctionBody;
 import org.wso2.ballerinalang.compiler.tree.BLangFunction;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstant;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangStatementExpression;
-import org.wso2.ballerinalang.compiler.tree.statements.BLangAssignment;
-import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
-import org.wso2.ballerinalang.compiler.tree.statements.BLangStatement;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeConversionExpr;
 
 import java.util.List;
 
@@ -59,7 +56,7 @@ public class AnnotationAttachmentTest {
         List<BLangAnnotationAttachment> attachments = (List<BLangAnnotationAttachment>)
                 compileResult.getAST().getTypeDefinitions().get(2).getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v1", "val", "v1 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v1", "val", "v1 value");
     }
 
     @Test
@@ -67,8 +64,8 @@ public class AnnotationAttachmentTest {
         List<BLangAnnotationAttachment> attachments = (List<BLangAnnotationAttachment>)
                 compileResult.getAST().getTypeDefinitions().get(3).getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 2);
-        assertNameAndKeyValuePair(attachments.get(0), "v1", "val", "v1 value object");
-        assertNameAndKeyValuePair(attachments.get(1), "v2", "val", "v2 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v1", "val", "v1 value object");
+        assertAnnotationNameAndKeyValuePair(attachments.get(1), "v2", "val", "v2 value");
     }
 
     @Test
@@ -76,20 +73,20 @@ public class AnnotationAttachmentTest {
         BLangFunction function = getFunction("T2.setName");
         List<BLangAnnotationAttachment> attachments = function.annAttachments;
         Assert.assertEquals(attachments.size(), 2);
-        assertNameAndKeyValuePair(attachments.get(0), "v3", "val", "v31 value");
-        assertNameAndKeyValuePair(attachments.get(1), "v4", "val", 41L);
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v3", "val", "v31 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(1), "v4", "val", 41L);
 
         attachments = function.requiredParams.get(0).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value required");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value required");
 
         attachments = function.requiredParams.get(1).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value defaultable");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value defaultable");
 
         attachments = function.restParam.annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value rest");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v61 value rest");
 
         attachments = function.returnTypeAnnAttachments;
         Assert.assertEquals(attachments.size(), 1);
@@ -103,19 +100,19 @@ public class AnnotationAttachmentTest {
         BLangFunction function = getFunction("func");
         List<BLangAnnotationAttachment> attachments = function.annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v3", "val", "v33 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v3", "val", "v33 value");
 
         attachments = function.requiredParams.get(0).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value required");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value required");
 
         attachments = function.requiredParams.get(1).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value defaultable");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value defaultable");
 
         attachments = function.restParam.annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value rest");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v63 value rest");
 
         attachments = function.returnTypeAnnAttachments;
         Assert.assertEquals(attachments.size(), 1);
@@ -132,7 +129,7 @@ public class AnnotationAttachmentTest {
                         .findFirst()
                         .get().getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNonDesugaredNameAndKeyValuePair(attachments.get(0), "v9", "val", "v91");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v9", "val", "v91");
     }
 
     @Test
@@ -143,7 +140,7 @@ public class AnnotationAttachmentTest {
                         .findFirst()
                         .get().getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v8", "val", "v8");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v8", "val", "v8");
     }
 
     @Test
@@ -151,12 +148,12 @@ public class AnnotationAttachmentTest {
         BLangFunction function = getFunction("ser$$service$0.res");
         List<BLangAnnotationAttachment> attachments = function.annAttachments;
         Assert.assertEquals(attachments.size(), 2);
-        assertNameAndKeyValuePair(attachments.get(0), "v3", "val", "v34");
-        assertNameAndKeyValuePair(attachments.get(1), "v5", "val", "54");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v3", "val", "v34");
+        assertAnnotationNameAndKeyValuePair(attachments.get(1), "v5", "val", "54");
 
         attachments = function.requiredParams.get(0).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v64");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v64");
 
         attachments = function.returnTypeAnnAttachments;
         Assert.assertEquals(attachments.size(), 1);
@@ -173,7 +170,7 @@ public class AnnotationAttachmentTest {
                         .findFirst()
                         .get().getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v8", "val", "v82");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v8", "val", "v82");
     }
 
     @Test
@@ -181,11 +178,11 @@ public class AnnotationAttachmentTest {
         BLangFunction function = getFunction("$anonService$1$$service$2.res");
         List<BLangAnnotationAttachment> attachments = function.annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v5", "val", "542");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v5", "val", "542");
 
         attachments = function.requiredParams.get(0).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v6", "val", "v642");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v6", "val", "v642");
 
         attachments = function.returnTypeAnnAttachments;
         Assert.assertEquals(attachments.size(), 1);
@@ -202,7 +199,7 @@ public class AnnotationAttachmentTest {
                 .findFirst()
                 .get().getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNonDesugaredNameAndKeyValuePair(attachments.get(0), "v10", "str", "v10 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v10", "str", "v10 value");
     }
 
     @Test
@@ -213,7 +210,7 @@ public class AnnotationAttachmentTest {
                         .findFirst()
                         .get().getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNonDesugaredNameAndKeyValuePair(attachments.get(0), "v11", "val", 11L);
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v11", "val", 11L);
     }
 
     @Test
@@ -225,7 +222,7 @@ public class AnnotationAttachmentTest {
                         .get())
                         .getAnnotationAttachments();
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v12", "str", "v12 value");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v12", "str", "v12 value");
     }
 
     @Test(enabled = false)
@@ -242,16 +239,17 @@ public class AnnotationAttachmentTest {
 
         attachments = ((BLangExternalFunctionBody) function.body).annAttachments;
         Assert.assertEquals(attachments.size(), 1);
-        assertNameAndKeyValuePair(attachments.get(0), "v13", "strOne", "one");
-        assertNameAndKeyValuePair(attachments.get(0), "v13", "strTwo", "two");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v13", "strOne", "one");
+        assertAnnotationNameAndKeyValuePair(attachments.get(0), "v13", "strTwo", "two");
     }
 
-    private void assertNonDesugaredNameAndKeyValuePair(BLangAnnotationAttachment attachment, String annotName,
-                                                       String fieldName, Object value) {
+    private void assertAnnotationNameAndKeyValuePair(BLangAnnotationAttachment attachment, String annotName,
+                                                     String fieldName, Object value) {
         Assert.assertEquals(attachment.annotationName.getValue(), annotName);
-        Assert.assertEquals(attachment.expr.getKind(), NodeKind.RECORD_LITERAL_EXPR);
+        BLangExpression expression = getActualExpressionFromAnnotationAttachmentExpr(attachment.expr);
+        Assert.assertEquals(expression.getKind(), NodeKind.RECORD_LITERAL_EXPR);
 
-        BLangRecordLiteral recordLiteral = (BLangRecordLiteral) attachment.expr;
+        BLangRecordLiteral recordLiteral = (BLangRecordLiteral) expression;
         Assert.assertEquals(recordLiteral.getFields().size(), 1);
 
         BLangRecordLiteral.BLangRecordKeyValueField keyValuePair =
@@ -260,28 +258,23 @@ public class AnnotationAttachmentTest {
         Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, value);
     }
 
-    private void assertNameAndKeyValuePair(BLangAnnotationAttachment attachment, String annotName, String fieldName,
-                                           Object value) {
-        Assert.assertEquals(attachment.annotationName.getValue(), annotName);
-        Assert.assertEquals(attachment.expr.getKind(), NodeKind.STATEMENT_EXPRESSION);
-
-        BLangStatementExpression stmtExpr = (BLangStatementExpression) attachment.expr;
-        List<BLangStatement> stmts = ((BLangBlockStmt) stmtExpr.stmt).stmts;
-        Assert.assertEquals(stmts.size(), 2);
-
-        BLangAssignment assignment = (BLangAssignment) stmts.get(1);
-        Assert.assertEquals(getKeyString(assignment), fieldName);
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, value);
+    private BLangExpression getActualExpressionFromAnnotationAttachmentExpr(BLangExpression expression) {
+        if (expression.getKind() == NodeKind.TYPE_CONVERSION_EXPR) {
+            BLangTypeConversionExpr expr = (BLangTypeConversionExpr) expression;
+            if (expr.getKind() == NodeKind.INVOCATION) {
+                return ((BLangInvocation) expr.expr).expr;
+            }
+        }
+        if (expression.getKind() == NodeKind.INVOCATION) {
+            return ((BLangInvocation) expression).expr;
+        }
+        return expression;
     }
 
     private String getKeyString(BLangRecordLiteral.BLangRecordKeyValueField keyValuePair) {
         return keyValuePair.getKey() instanceof BLangSimpleVarRef ?
                 ((BLangSimpleVarRef) keyValuePair.key.expr).variableName.value :
                 ((BLangLiteral) keyValuePair.getKey()).value.toString();
-    }
-
-    private String getKeyString(BLangAssignment assignment) {
-        return (String) ((BLangLiteral) ((BLangIndexBasedAccess) assignment.varRef).indexExpr).value;
     }
 
     private BLangFunction getFunction(String functionName) {
@@ -302,62 +295,59 @@ public class AnnotationAttachmentTest {
         Assert.assertEquals(attachments.size(), 1);
         BLangAnnotationAttachment attachment = attachments.get(0);
         Assert.assertEquals(attachment.annotationName.getValue(), "v1");
-        Assert.assertEquals(attachment.expr.getKind(), NodeKind.STATEMENT_EXPRESSION);
+        BLangExpression annotationExpression = getActualExpressionFromAnnotationAttachmentExpr(attachment.expr);
+        Assert.assertEquals(annotationExpression.getKind(), NodeKind.RECORD_LITERAL_EXPR);
 
-        BLangStatementExpression stmtExpr = (BLangStatementExpression) attachment.expr;
-        List<BLangStatement> stmts = ((BLangBlockStmt) stmtExpr.stmt).stmts;
-        Assert.assertEquals(stmts.size(), 3);
+        BLangRecordLiteral recordLiteral = (BLangRecordLiteral) annotationExpression;
+        Assert.assertEquals(recordLiteral.getFields().size(), 2);
 
-        BLangAssignment assignment = (BLangAssignment) stmts.get(1);
-        Assert.assertEquals(getKeyString(assignment), "f1");
-        BLangExpression expression = assignment.expr;
+        BLangRecordLiteral.BLangRecordKeyValueField keyValuePair =
+                (BLangRecordLiteral.BLangRecordKeyValueField) recordLiteral.getFields().get(0);
+        Assert.assertEquals(getKeyString(keyValuePair), "f1");
+        BLangExpression expression = keyValuePair.valueExpr;
         Assert.assertEquals(expression.getKind(), NodeKind.ARRAY_LITERAL_EXPR);
         BLangListConstructorExpr listConstructorExpr = (BLangListConstructorExpr) expression;
         Assert.assertEquals(listConstructorExpr.exprs.size(), 2);
 
         BLangExpression element = listConstructorExpr.exprs.get(0);
-        Assert.assertEquals(element.getKind(), NodeKind.STATEMENT_EXPRESSION);
-        BLangStatementExpression elementStmtExpr = (BLangStatementExpression) element;
-        List<BLangStatement> elementStmts = ((BLangBlockStmt) elementStmtExpr.stmt).stmts;
-
-        Assert.assertEquals(elementStmts.size(), 3);
-        assignment = (BLangAssignment) elementStmts.get(1);
-        Assert.assertEquals(getKeyString(assignment), "s");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "s");
-        assignment = (BLangAssignment) elementStmts.get(2);
-        Assert.assertEquals(getKeyString(assignment), "t");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "t");
+        Assert.assertEquals(element.getKind(), NodeKind.RECORD_LITERAL_EXPR);
+        BLangRecordLiteral elementRecordLiteral = (BLangRecordLiteral) element;
+        Assert.assertEquals(elementRecordLiteral.getFields().size(), 2);
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(0);
+        Assert.assertEquals(getKeyString(keyValuePair), "s");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "s");
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(1);
+        Assert.assertEquals(getKeyString(keyValuePair), "t");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "t");
 
         element = listConstructorExpr.exprs.get(1);
-        Assert.assertEquals(element.getKind(), NodeKind.STATEMENT_EXPRESSION);
-        elementStmtExpr = (BLangStatementExpression) element;
-        elementStmts = ((BLangBlockStmt) elementStmtExpr.stmt).stmts;
-        Assert.assertEquals(elementStmts.size(), 3);
-        assignment = (BLangAssignment) elementStmts.get(1);
-        Assert.assertEquals(getKeyString(assignment), "s");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "s2");
-        assignment = (BLangAssignment) elementStmts.get(2);
-        Assert.assertEquals(getKeyString(assignment), "t");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "t2");
+        Assert.assertEquals(element.getKind(), NodeKind.RECORD_LITERAL_EXPR);
+        elementRecordLiteral = (BLangRecordLiteral) element;
+        Assert.assertEquals(elementRecordLiteral.getFields().size(), 2);
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(0);
+        Assert.assertEquals(getKeyString(keyValuePair), "s");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "s2");
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(1);
+        Assert.assertEquals(getKeyString(keyValuePair), "t");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "t2");
 
-        assignment = (BLangAssignment) stmts.get(2);
-        Assert.assertEquals(getKeyString(assignment), "f2");
-        expression = assignment.expr;
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) recordLiteral.getFields().get(1);
+        Assert.assertEquals(getKeyString(keyValuePair), "f2");
+        expression = keyValuePair.valueExpr;
         Assert.assertEquals(expression.getKind(), NodeKind.TUPLE_LITERAL_EXPR);
         listConstructorExpr = (BLangListConstructorExpr) expression;
         Assert.assertEquals(listConstructorExpr.exprs.size(), 2);
 
         element = listConstructorExpr.exprs.get(0);
-        Assert.assertEquals(element.getKind(), NodeKind.STATEMENT_EXPRESSION);
-        elementStmtExpr = (BLangStatementExpression) element;
-        elementStmts = ((BLangBlockStmt) elementStmtExpr.stmt).stmts;
-        Assert.assertEquals(elementStmts.size(), 3);
-        assignment = (BLangAssignment) elementStmts.get(1);
-        Assert.assertEquals(getKeyString(assignment), "s");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "s3");
-        assignment = (BLangAssignment) elementStmts.get(2);
-        Assert.assertEquals(getKeyString(assignment), "t");
-        Assert.assertEquals(((BLangLiteral) assignment.expr).value, "t3");
+        Assert.assertEquals(element.getKind(), NodeKind.RECORD_LITERAL_EXPR);
+        elementRecordLiteral = (BLangRecordLiteral) element;
+        Assert.assertEquals(elementRecordLiteral.getFields().size(), 2);
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(0);
+        Assert.assertEquals(getKeyString(keyValuePair), "s");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "s3");
+        keyValuePair = (BLangRecordLiteral.BLangRecordKeyValueField) elementRecordLiteral.getFields().get(1);
+        Assert.assertEquals(getKeyString(keyValuePair), "t");
+        Assert.assertEquals(((BLangLiteral) keyValuePair.getValue()).value, "t3");
 
         element = listConstructorExpr.exprs.get(1);
         Assert.assertEquals(element.getKind(), NodeKind.LITERAL);

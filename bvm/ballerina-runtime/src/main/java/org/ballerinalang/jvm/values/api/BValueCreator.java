@@ -38,7 +38,7 @@ import org.ballerinalang.jvm.values.StreamValue;
 import org.ballerinalang.jvm.values.StreamingJsonValue;
 import org.ballerinalang.jvm.values.StringValue;
 import org.ballerinalang.jvm.values.TupleValueImpl;
-import org.ballerinalang.jvm.values.TypedescValue;
+import org.ballerinalang.jvm.values.TypedescValueImpl;
 import org.ballerinalang.jvm.values.XMLItem;
 import org.ballerinalang.jvm.values.XMLQName;
 import org.ballerinalang.jvm.values.XMLSequence;
@@ -124,16 +124,6 @@ import javax.xml.namespace.QName;
       * @param values initial array values
       * @return string array
       */
-     public static BArray createArrayValue(String[] values) {
-         return new ArrayValueImpl(values);
-     }
-
-     /**
-      * Creates a new string array.
-      *
-      * @param values initial array values
-      * @return string array
-      */
      public static BArray createArrayValue(BString[] values) {
          return new ArrayValueImpl(values);
      }
@@ -192,37 +182,49 @@ import javax.xml.namespace.QName;
      }
 
      /**
-      * Create error value with given type, reason and details.
+      * Create error value with given type, message and details.
       *
       * @param type {@code BErrorType} of the error
-      * @param reason error reason
+      * @param message error message
       * @param details error details
       * @return error value
       */
-     public static BError createErrorValue(BErrorType type, BString reason, Object details) {
-         return new ErrorValue(type, (StringValue) reason, details);
+     public static BError createErrorValue(BErrorType type, BString message, Object details) {
+         return new ErrorValue(type, (StringValue) message, null, details);
      }
 
      /**
-      * Create error value with given reason and error details.
+      * Create error value with given message and error details.
       *
-      * @param reason error reason
+      * @param message error message
       * @param details error detail
       * @return error value
       */
-     public static BError createErrorValue(BString reason, Object details) {
-         return new ErrorValue((StringValue) reason, details);
+     public static BError createErrorValue(BString message, Object details) {
+         return new ErrorValue((StringValue) message, details);
      }
 
      /**
       * Create function pointer to the given function with given {@code BType}.
       *
       * @param function pointing function
-      * @param type {@code BFunctionType} of the function pointer
+      * @param type     {@code BFunctionType} of the function pointer
       * @return function pointer
       */
      public static BFunctionPointer createFPValue(Function function, BFunctionType type) {
-         return new FPValue(function, type, false);
+         return new FPValue(function, type, null, false);
+     }
+
+     /**
+      * Create function pointer to the given function with given {@code BType}.
+      *
+      * @param function   pointing function
+      * @param type       {@code BFunctionType} of the function pointer
+      * @param strandName name for newly creating strand which is used to run the function pointer
+      * @return function pointer
+      */
+     public static BFunctionPointer createFPValue(Function function, BFunctionType type, String strandName) {
+         return new FPValue(function, type, strandName, false);
      }
 
      /**
@@ -252,7 +254,7 @@ import javax.xml.namespace.QName;
       * @return type descriptor
       */
      public static BTypedesc createTypedescValue(BType describingType) {
-         return new TypedescValue(describingType);
+         return new TypedescValueImpl(describingType);
      }
 
      /**
@@ -333,12 +335,12 @@ import javax.xml.namespace.QName;
      /**
       * Create a record value using the given package id and record type name.
       *
-      * @param packageId the package id that the record type resides.
+      * @param packageId      the package id that the record type resides.
       * @param recordTypeName name of the record type.
       * @return value of the record.
       */
-     public static BMap<String, Object> createRecordValue(BPackage packageId, String recordTypeName) {
-         return (BMap<String, Object>) BallerinaValues.createRecordValue(packageId, recordTypeName);
+     public static BMap<BString, Object> createRecordValue(BPackage packageId, String recordTypeName) {
+         return BallerinaValues.createRecordValue(packageId, recordTypeName);
      }
 
      /**
@@ -350,9 +352,9 @@ import javax.xml.namespace.QName;
       * @param valueMap values to be used for fields when creating the record.
       * @return value of the populated record.
       */
-     public static BMap<String, Object> createRecordValue(BPackage packageId, String recordTypeName,
-                                                              Map<String, Object> valueMap) {
-         return (BMap<String, Object>) BallerinaValues.createRecordValue(packageId, recordTypeName, valueMap);
+     public static BMap<BString, Object> createRecordValue(BPackage packageId, String recordTypeName,
+                                                           Map<String, Object> valueMap) {
+         return BallerinaValues.createRecordValue(packageId, recordTypeName, valueMap);
      }
 
      /**
@@ -364,7 +366,7 @@ import javax.xml.namespace.QName;
       * @return value of the object.
       */
      public static BObject createObjectValue(BPackage packageId, String objectTypeName, Object... fieldValues) {
-         return (BObject) BallerinaValues.createObjectValue(packageId, objectTypeName, fieldValues);
+         return BallerinaValues.createObjectValue(packageId, objectTypeName, fieldValues);
      }
 
      /**
@@ -374,8 +376,8 @@ import javax.xml.namespace.QName;
       * @param values field values of the record.
       * @return value of the record.
       */
-     public static BMap<String, Object> createRecord(BMap<String, Object> record, Object... values) {
-         return (BMap) BallerinaValues.createRecord((MapValue<String, Object>) record, values);
+     public static BMap<BString, Object> createRecord(BMap<BString, Object> record, Object... values) {
+         return BallerinaValues.createRecord((MapValue<BString, Object>) record, values);
      }
 
  }

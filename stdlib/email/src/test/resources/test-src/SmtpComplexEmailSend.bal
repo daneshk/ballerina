@@ -18,13 +18,14 @@ import ballerina/email;
 import ballerina/mime;
 
 email:SmtpConfig smtpConfig = {
-    port: 3025,
-    enableSsl: false
+    port: 30250, // This is an incorrect value. Later the correct value, 3025 will be set via a property.
+    enableSsl: false,
+    properties: {"mail.smtp.port":"3025"}
 };
 
 function testSendComplexEmail(string host, string username, string password, string subject, string body,
-        string fromAddress, string sender, string[] toAddresses, string[] ccAddresses, string[] bccAddresses,
-        string[] replyToAddresses) returns email:Error? {
+        string contentType, string fromAddress, string sender, string[] toAddresses, string[] ccAddresses,
+        string[] bccAddresses, string[] replyToAddresses) returns email:Error? {
 
     email:SmtpClient|email:Error smtpClient = new (host, username,  password, smtpConfig);
 
@@ -74,11 +75,14 @@ function testSendComplexEmail(string host, string username, string password, str
         bcc: bccAddresses,
         subject: subject,
         body: body,
+        contentType: contentType,
+        headers: {header1_name: "header1_value"},
         'from: fromAddress,
         sender: sender,
         replyTo: replyToAddresses,
         attachments: bodyParts
     };
+
     if (smtpClient is email:SmtpClient) {
         return smtpClient->send(email);
     } else {

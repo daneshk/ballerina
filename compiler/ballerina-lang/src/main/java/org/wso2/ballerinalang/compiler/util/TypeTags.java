@@ -31,7 +31,8 @@ public class TypeTags {
     // All the above types are values type
     public static final int JSON = BOOLEAN + 1;
     public static final int XML = JSON + 1;
-    public static final int NIL = XML + 1;
+    public static final int TABLE = XML + 1;
+    public static final int NIL = TABLE + 1;
     public static final int ANYDATA = NIL + 1;
     public static final int RECORD = ANYDATA + 1;
     public static final int TYPEDESC = RECORD + 1;
@@ -43,7 +44,8 @@ public class TypeTags {
     public static final int ENDPOINT = ANY + 1;
     public static final int ARRAY = ENDPOINT + 1;
     public static final int UNION = ARRAY + 1;
-    public static final int PACKAGE = UNION + 1;
+    public static final int INTERSECTION = UNION + 1;
+    public static final int PACKAGE = INTERSECTION + 1;
     public static final int NONE = PACKAGE + 1;
     public static final int VOID = NONE + 1;
     public static final int XMLNS = VOID + 1;
@@ -59,9 +61,10 @@ public class TypeTags {
     public static final int BYTE_ARRAY = OBJECT + 1;
     public static final int FUNCTION_POINTER = BYTE_ARRAY + 1;
     public static final int HANDLE = FUNCTION_POINTER + 1;
+    public static final int READONLY = HANDLE + 1;
 
     // Subtypes
-    public static final int SIGNED32_INT = HANDLE + 1;
+    public static final int SIGNED32_INT = READONLY + 1;
     public static final int SIGNED16_INT = SIGNED32_INT + 1;
     public static final int SIGNED8_INT = SIGNED16_INT + 1;
     public static final int UNSIGNED32_INT = SIGNED8_INT + 1;
@@ -72,6 +75,10 @@ public class TypeTags {
     public static final int XML_PI = XML_ELEMENT + 1;
     public static final int XML_COMMENT = XML_PI + 1;
     public static final int XML_TEXT = XML_COMMENT + 1;
+    public static final int NEVER = XML_TEXT + 1;
+
+    public static final int NULL_SET = XML_TEXT + 1;
+    public static final int PARAMETERIZED_TYPE = NULL_SET + 1;
 
     private TypeTags() {
 

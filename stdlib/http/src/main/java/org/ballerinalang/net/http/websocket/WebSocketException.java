@@ -18,12 +18,13 @@
 
 package org.ballerinalang.net.http.websocket;
 
-import org.ballerinalang.jvm.BallerinaValues;
+import org.ballerinalang.jvm.StringUtils;
+import org.ballerinalang.jvm.TypeChecker;
+import org.ballerinalang.jvm.types.BErrorType;
+import org.ballerinalang.jvm.types.BTypes;
+import org.ballerinalang.jvm.types.TypeConstants;
 import org.ballerinalang.jvm.values.ErrorValue;
-import org.ballerinalang.jvm.values.MapValue;
-import org.ballerinalang.net.http.HttpConstants;
-
-import static org.ballerinalang.net.http.websocket.WebSocketConstants.ErrorCode;
+import org.ballerinalang.jvm.values.MapValueImpl;
 
 /**
  * Exceptions that could occur in WebSocket.
@@ -34,34 +35,31 @@ public class WebSocketException extends ErrorValue {
     private final String message;
 
     public WebSocketException(Throwable ex) {
-        this(WebSocketUtil.getErrorMessage(ex));
+        this(WebSocketConstants.ErrorCode.WsGenericError.errorCode().substring(2) + ":" +
+                WebSocketUtil.getErrorMessage(ex));
     }
 
     public WebSocketException(String message) {
-        this(ErrorCode.WsGenericError, message);
+        this(message, new MapValueImpl<>(BTypes.typeErrorDetail));
+       }
+
+    public WebSocketException(String message, ErrorValue cause) {
+        this(message, cause, new MapValueImpl<>(BTypes.typeErrorDetail));
     }
 
-    public WebSocketException(ErrorCode errorCode, String message) {
-        super(errorCode.errorCode(), createDetailRecord(message));
+    public WebSocketException(String message, MapValueImpl<Object, Object> details) {
+        super(new BErrorType(TypeConstants.ERROR, BTypes.typeError.getPackage(), TypeChecker.getType(details)),
+                StringUtils.fromString(message), null, details);
         this.message = message;
     }
 
-    public WebSocketException(ErrorCode errorCode, String message, ErrorValue cause) {
-        super(errorCode.errorCode(), createDetailRecord(message, cause));
+    public WebSocketException(String message, ErrorValue cause, MapValueImpl<Object, Object> details) {
+        super(new BErrorType(TypeConstants.ERROR, BTypes.typeError.getPackage(), TypeChecker.getType(details)),
+                StringUtils.fromString(message), cause, details);
         this.message = message;
     }
 
     public String detailMessage() {
         return message;
-    }
-
-    private static MapValue<String, Object> createDetailRecord(String errMsg) {
-        return createDetailRecord(errMsg, null);
-    }
-
-    private static MapValue<String, Object> createDetailRecord(String errMsg, ErrorValue cause) {
-        MapValue<String, Object> detail = BallerinaValues.createRecordValue(HttpConstants.PROTOCOL_HTTP_PKG_ID,
-                WebSocketConstants.WEBSOCKET_ERROR_DETAILS);
-        return BallerinaValues.createRecord(detail, errMsg, cause);
     }
 }

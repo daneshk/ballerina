@@ -25,3 +25,52 @@ function testIncompatibleListConstructorExprs2() {
 
 type NoFillerObject abstract object {
 };
+
+function testInvalidAssignmentForInferredTuple() {
+    var tup = [
+        {id: 123, name: "Anne", city: "Colombo"},
+        {id: 456, name: "Jo", age: 40},
+        1,
+        "abc"
+    ];
+
+    [record {|
+         int id;
+         string name;
+         int city;
+    |},
+    record {}, boolean, string] tup2 = tup;
+
+    record {|
+         int id;
+         string name;
+         string age;
+    |} v1 = tup[1];
+    float v2 = tup[2];
+}
+
+function testInferringForReadOnlyNonReadOnlyMemberNegative() {
+    int[] arr = [1, 2];
+
+    future<()> ft = start testInferringForReadOnlyNonReadOnlyMemberNegative();
+
+    readonly rd = [1, arr, ft];
+}
+
+function testInferringForReadOnlyNegativeInUnion() {
+    map<boolean|int> mp = {
+        i: 1,
+        b: true
+    };
+
+    readonly|int[] rd = [1, mp];
+
+    boolean[] & readonly arr = [];
+
+    boolean[][]|readonly br = [arr];
+}
+
+function testListConstrWithIssuesInCET() {
+    Foo f = ["hello", <string> 1]; // Unknown type.
+    string[]|Foo g = [<string> 1, "hello"]; // Unknown type in union.
+}

@@ -63,7 +63,7 @@ public class FunctionPointersNegativeTest {
         BAssertUtil.validateError(result, 0, "incompatible types: expected 'string', found 'Person'", 32, 39);
     }
 
-    @Test()
+    @Test(groups = { "disableOnOldParser" })
     public void testFPWithNoImport() {
         CompileResult result =
                 BCompileUtil.compile("test-src/expressions/lambda/negative/fp-with-import-negative.bal");
@@ -71,9 +71,9 @@ public class FunctionPointersNegativeTest {
         int i = -1;
         BAssertUtil.validateError(result, ++i, "undefined module 'streams'", 19, 5);
         BAssertUtil.validateError(result, ++i, "unknown type 'Select'", 19, 5);
-        BAssertUtil.validateError(result, ++i, "undefined function 'createSelect'", 19, 29);
-        BAssertUtil.validateError(result, ++i, "undefined module 'streams'", 19, 29);
-        BAssertUtil.validateError(result, ++i, "undefined symbol 'outputProcess'", 19, 50);
+        BAssertUtil.validateError(result, ++i, "undefined function 'createSelect'", 19, 32);
+        BAssertUtil.validateError(result, ++i, "undefined module 'streams'", 19, 32);
+        BAssertUtil.validateError(result, ++i, "undefined symbol 'outputProcess'", 19, 53);
 //        BAssertUtil.validateError(result, ++i, "array index out of range: index: '3', size: '2'", 23, 29); #12122
     }
 
@@ -88,7 +88,7 @@ public class FunctionPointersNegativeTest {
         BAssertUtil.validateError(result, i++, "undefined function 'f3'", 46, 9);
         BAssertUtil.validateError(result, i++, "undefined field 'getFname' in object 'Employee'", 77, 15);
         BAssertUtil.validateError(result, i++, "undefined function 'f3'", 78, 9);
-        BAssertUtil.validateError(result, i++, "undefined method 'getLname' in object 'Employee'", 83, 11);
+        BAssertUtil.validateError(result, i, "undefined method 'getLname' in object 'Employee'", 83, 11);
     }
 
     @Test
@@ -100,6 +100,6 @@ public class FunctionPointersNegativeTest {
         BAssertUtil.validateError(result, i++, "missing required parameter 'i' in call to 'fn'()", 9, 16);
         BAssertUtil.validateError(result, i++, "missing required parameter 'i' in call to 'fn'()", 20, 16);
         BAssertUtil.validateError(result, i++, "too many arguments in call to 'fn()'", 31, 16);
-        BAssertUtil.validateError(result, i++, "too many arguments in call to 'fn()'", 42, 16);
+        BAssertUtil.validateError(result, i, "too many arguments in call to 'fn()'", 42, 16);
     }
 }

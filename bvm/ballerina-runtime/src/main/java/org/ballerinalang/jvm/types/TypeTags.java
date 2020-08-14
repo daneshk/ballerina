@@ -31,7 +31,8 @@ public class TypeTags {
     public static final int BOOLEAN_TAG = STRING_TAG + 1;
     public static final int JSON_TAG = BOOLEAN_TAG + 1;
     public static final int XML_TAG = JSON_TAG + 1;
-    public static final int NULL_TAG = XML_TAG + 1;
+    public static final int TABLE_TAG = XML_TAG + 1;
+    public static final int NULL_TAG = TABLE_TAG + 1;
     public static final int ANYDATA_TAG = NULL_TAG + 1;
     public static final int RECORD_TYPE_TAG = ANYDATA_TAG + 1;
     public static final int TYPEDESC_TAG = RECORD_TYPE_TAG + 1;
@@ -43,7 +44,8 @@ public class TypeTags {
     public static final int SERVICE_TAG = ENDPOINT_TAG + 1;
     public static final int ARRAY_TAG = SERVICE_TAG + 1;
     public static final int UNION_TAG = ARRAY_TAG + 1;
-    public static final int PACKAGE_TAG = UNION_TAG + 1;
+    public static final int INTERSECTION_TAG = UNION_TAG + 1;
+    public static final int PACKAGE_TAG = INTERSECTION_TAG + 1;
     public static final int NONE_TAG = PACKAGE_TAG + 1;
     public static final int VOID_TAG = NONE_TAG + 1;
     public static final int XMLNS_TAG = VOID_TAG + 1;
@@ -60,9 +62,10 @@ public class TypeTags {
     public static final int FUNCTION_POINTER_TAG = BYTE_ARRAY_TAG + 1;
     public static final int CHANNEL_TAG = FUNCTION_POINTER_TAG + 1;
     public static final int HANDLE_TAG = FUNCTION_POINTER_TAG + 1;
+    public static final int READONLY_TAG = HANDLE_TAG + 1;
 
     // Subtypes
-    public static final int SIGNED32_INT_TAG = HANDLE_TAG + 1;
+    public static final int SIGNED32_INT_TAG = READONLY_TAG + 1;
     public static final int SIGNED16_INT_TAG = SIGNED32_INT_TAG + 1;
     public static final int SIGNED8_INT_TAG = SIGNED16_INT_TAG + 1;
     public static final int UNSIGNED32_INT_TAG = SIGNED8_INT_TAG + 1;
@@ -73,6 +76,7 @@ public class TypeTags {
     public static final int XML_PI_TAG = XML_ELEMENT_TAG + 1;
     public static final int XML_COMMENT_TAG = XML_PI_TAG + 1;
     public static final int XML_TEXT_TAG = XML_COMMENT_TAG + 1;
+    public static final int NEVER_TAG = XML_TEXT_TAG + 1;
 
     public static boolean isIntegerTypeTag(int tag) {
 

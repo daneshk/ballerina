@@ -44,41 +44,37 @@ public class QueryExpressionIterableObjectTest {
     @Test
     public void testIterableObject() {
         BValue[] returns = BRunUtil.invoke(program, "testIterableObject");
-
-        BValueArray arr = (BValueArray) returns[0];
-        Assert.assertEquals(arr.size(), 7);
+        BValueArray array = (BValueArray) returns[0];
         int i = 0;
-        Assert.assertEquals(arr.getInt(i++), 12);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 56);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 78);
-        Assert.assertEquals(arr.getInt(i++), 21);
-        Assert.assertEquals(arr.getInt(i), 90);
+        Assert.assertEquals(array.getInt(i++), 12);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 56);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 78);
+        Assert.assertEquals(array.getInt(i++), 21);
+        Assert.assertEquals(array.getInt(i), 90);
 
     }
 
     @Test
     public void testNestedIterableObject() {
         BValue[] returns = BRunUtil.invoke(program, "testNestedIterableObject");
-
-        BValueArray arr = (BValueArray) returns[0];
-        Assert.assertEquals(arr.size(), 14);
+        BValueArray array = (BValueArray) returns[0];
         int i = 0;
-        Assert.assertEquals(arr.getInt(i++), 12);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 56);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 78);
-        Assert.assertEquals(arr.getInt(i++), 21);
-        Assert.assertEquals(arr.getInt(i++), 90);
-        Assert.assertEquals(arr.getInt(i++), 12);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 56);
-        Assert.assertEquals(arr.getInt(i++), 34);
-        Assert.assertEquals(arr.getInt(i++), 78);
-        Assert.assertEquals(arr.getInt(i++), 21);
-        Assert.assertEquals(arr.getInt(i), 90);
+        Assert.assertEquals(array.getInt(i++), 12);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 56);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 78);
+        Assert.assertEquals(array.getInt(i++), 21);
+        Assert.assertEquals(array.getInt(i++), 90);
+        Assert.assertEquals(array.getInt(i++), 12);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 56);
+        Assert.assertEquals(array.getInt(i++), 34);
+        Assert.assertEquals(array.getInt(i++), 78);
+        Assert.assertEquals(array.getInt(i++), 21);
+        Assert.assertEquals(array.getInt(i), 90);
 
     }
 
@@ -88,5 +84,36 @@ public class QueryExpressionIterableObjectTest {
         Assert.assertNotNull(returnValues);
         Assert.assertEquals(returnValues.length, 1, "Expected events are not received");
         Assert.assertTrue(returnValues[0] instanceof BError, "Expected BErrorType type value");
+    }
+
+    @Test
+    public void testStreamOfStreams() {
+        BValue[] returns = BRunUtil.invoke(program, "testStreamOfStreams");
+        BValueArray array = (BValueArray) returns[0];
+        int i = 0;
+        Assert.assertEquals(array.getInt(i++), 1);
+        Assert.assertEquals(array.getInt(i++), 2);
+        Assert.assertEquals(array.getInt(i++), 3);
+        Assert.assertEquals(array.getInt(i++), 4);
+        Assert.assertEquals(array.getInt(i++), 1);
+        Assert.assertEquals(array.getInt(i++), 2);
+        Assert.assertEquals(array.getInt(i++), 3);
+        Assert.assertEquals(array.getInt(i++), 4);
+        Assert.assertEquals(array.getInt(i++), 1);
+        Assert.assertEquals(array.getInt(i++), 2);
+        Assert.assertEquals(array.getInt(i++), 3);
+        Assert.assertEquals(array.getInt(i), 4);
+    }
+
+    @Test
+    public void testIteratorInStream() {
+        BValue[] returns = BRunUtil.invoke(program, "testIteratorInStream");
+        BValueArray array = (BValueArray) returns[0];
+        int i = 0;
+        Assert.assertEquals(array.getInt(i++), 1);
+        Assert.assertEquals(array.getInt(i++), 2);
+        Assert.assertEquals(array.getInt(i++), 3);
+        Assert.assertEquals(array.getInt(i++), 4);
+        Assert.assertEquals(array.getInt(i), 5);
     }
 }

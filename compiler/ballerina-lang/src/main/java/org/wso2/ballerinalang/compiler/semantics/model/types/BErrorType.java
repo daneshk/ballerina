@@ -21,6 +21,7 @@ import org.ballerinalang.model.types.ErrorType;
 import org.wso2.ballerinalang.compiler.semantics.model.TypeVisitor;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BTypeSymbol;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
+import org.wso2.ballerinalang.util.Flags;
 
 /**
  * Represents error type in Ballerina.
@@ -29,33 +30,27 @@ import org.wso2.ballerinalang.compiler.util.TypeTags;
  */
 public class BErrorType extends BType implements ErrorType {
 
-    public BType reasonType;
     public BType detailType;
+    public BTypeIdSet typeIdSet;
 
     private static final String DOLLAR = "$";
     private static final String ERROR = "error<";
-    private static final String SPACE = " ";
-    private static final String COMMA = ",";
     private static final String CLOSE_ERROR = ">";
 
-    public BErrorType(BTypeSymbol tSymbol, BType reasonType, BType detailType) {
-        super(TypeTags.ERROR, tSymbol);
-        this.reasonType = reasonType;
+    public BErrorType(BTypeSymbol tSymbol, BType detailType) {
+        super(TypeTags.ERROR, tSymbol, Flags.READONLY);
         this.detailType = detailType;
+        this.typeIdSet = BTypeIdSet.emptySet();
     }
 
     public BErrorType(BTypeSymbol tSymbol) {
-        super(TypeTags.ERROR, tSymbol);
+        super(TypeTags.ERROR, tSymbol, Flags.READONLY);
+        this.typeIdSet = BTypeIdSet.emptySet();
     }
 
     @Override
     public <T, R> R accept(BTypeVisitor<T, R> visitor, T t) {
         return visitor.visit(this, t);
-    }
-
-    @Override
-    public BType getReasonType() {
-        return reasonType;
     }
 
     @Override
@@ -73,6 +68,6 @@ public class BErrorType extends BType implements ErrorType {
         if (tsymbol != null && tsymbol.name != null && !tsymbol.name.value.startsWith(DOLLAR)) {
             return String.valueOf(tsymbol);
         }
-        return ERROR + reasonType + COMMA + SPACE + detailType + CLOSE_ERROR;
+        return ERROR +  detailType + CLOSE_ERROR;
     }
 }

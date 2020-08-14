@@ -37,6 +37,7 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLAttribute;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLElementLiteral;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangForkJoin;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangRetry;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangTransaction;
 import org.wso2.ballerinalang.compiler.tree.types.BLangObjectTypeNode;
 import org.wso2.ballerinalang.compiler.tree.types.BLangType;
@@ -75,6 +76,8 @@ public class SymbolEnv {
 
     public int relativeEnvCount;
 
+    public boolean isModuleInit;
+
     public SymbolEnv(BLangNode node, Scope scope) {
         this.scope = scope;
         this.node = node;
@@ -86,6 +89,7 @@ public class SymbolEnv {
         this.enclVarSym = null;
         this.logErrors = true;
         this.typeParamsEntries = null;
+        this.isModuleInit = false;
     }
 
     public void copyTo(SymbolEnv target) {
@@ -122,6 +126,12 @@ public class SymbolEnv {
         funcEnv.envCount = env.envCount + 1;
         funcEnv.relativeEnvCount = 0;
         funcEnv.enclInvokable = node;
+        return funcEnv;
+    }
+
+    public static SymbolEnv createModuleInitFunctionEnv(BLangFunction node, Scope scope, SymbolEnv env) {
+        SymbolEnv funcEnv = createFunctionEnv(node, scope, env);
+        funcEnv.isModuleInit = true;
         return funcEnv;
     }
 
@@ -171,13 +181,24 @@ public class SymbolEnv {
     }
 
     public static SymbolEnv createArrowFunctionSymbolEnv(BLangArrowFunction node, SymbolEnv env) {
-        SymbolEnv symbolEnv = new SymbolEnv(node, new Scope(env.scope.owner));
-        symbolEnv.enclEnv = env;
+        SymbolEnv symbolEnv = cloneSymbolEnvForClosure(node, env);
+        symbolEnv.enclEnv = env.enclEnv != null ? env.enclEnv.createClone() : null;
         symbolEnv.enclPkg = env.enclPkg;
         return symbolEnv;
     }
 
     public static SymbolEnv createTransactionEnv(BLangTransaction node, SymbolEnv env) {
+        SymbolEnv symbolEnv = new SymbolEnv(node, new Scope(env.scope.owner));
+        env.copyTo(symbolEnv);
+        symbolEnv.envCount = env.envCount + 1;
+        symbolEnv.enclEnv = env;
+        symbolEnv.enclInvokable = env.enclInvokable;
+        symbolEnv.node = node;
+        symbolEnv.enclPkg = env.enclPkg;
+        return symbolEnv;
+    }
+
+    public static SymbolEnv createRetryEnv(BLangRetry node, SymbolEnv env) {
         SymbolEnv symbolEnv = new SymbolEnv(node, new Scope(env.scope.owner));
         symbolEnv.enclEnv = env;
         symbolEnv.enclInvokable = env.enclInvokable;
@@ -295,13 +316,7 @@ public class SymbolEnv {
     }
 
     public SymbolEnv createClone() {
-        Scope scope = new Scope(this.scope.owner);
-        this.scope.entries.entrySet().stream()
-                // skip the type narrowed symbols when taking the snapshot for closures.
-                .filter(entry -> (entry.getValue().symbol.tag & SymTag.VARIABLE) != SymTag.VARIABLE ||
-                        ((BVarSymbol) entry.getValue().symbol).originalSymbol == null)
-                .forEach(entry -> scope.entries.put(entry.getKey(), entry.getValue()));
-        SymbolEnv symbolEnv = new SymbolEnv(node, scope);
+        SymbolEnv symbolEnv = cloneSymbolEnvForClosure(node, this);
         this.copyTo(symbolEnv);
         symbolEnv.enclEnv = this.enclEnv != null ? this.enclEnv.createClone() : null;
         symbolEnv.enclPkg = this.enclPkg;
@@ -310,16 +325,20 @@ public class SymbolEnv {
     }
 
     public SymbolEnv shallowClone() {
-        Scope scope = new Scope(this.scope.owner);
-        this.scope.entries.entrySet().stream()
+        SymbolEnv symbolEnv = cloneSymbolEnvForClosure(node, this);
+        this.copyTo(symbolEnv);
+        symbolEnv.enclEnv = this.enclEnv;
+        return symbolEnv;
+    }
+
+    private static SymbolEnv cloneSymbolEnvForClosure(BLangNode node, SymbolEnv env) {
+        Scope scope = new Scope(env.scope.owner);
+        env.scope.entries.entrySet().stream()
                 // skip the type narrowed symbols when taking the snapshot for closures.
                 .filter(entry -> (entry.getValue().symbol.tag & SymTag.VARIABLE) != SymTag.VARIABLE ||
                         ((BVarSymbol) entry.getValue().symbol).originalSymbol == null)
                 .forEach(entry -> scope.entries.put(entry.getKey(), entry.getValue()));
-        SymbolEnv symbolEnv = new SymbolEnv(node, scope);
-        this.copyTo(symbolEnv);
-        symbolEnv.enclEnv = this.enclEnv;
-        return symbolEnv;
+        return new SymbolEnv(node, scope);
     }
 
     /**

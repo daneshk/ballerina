@@ -41,6 +41,7 @@ import static org.testng.Assert.assertNull;
  *
  * @since 1.0
  */
+@Test
 public class LangLibValueTest {
 
     private CompileResult compileResult;
@@ -80,7 +81,13 @@ public class LangLibValueTest {
                      "\"boolVal\":true, \"floatVal\":45.4, \"nestedMap\":{\"xx\":\"XXStr\", \"n\":343, " +
                      "\"nilVal\":null}}, {\"name\":\"anObject\", \"value\":\"10\", \"sub\":\"Science\"}]");
         assertEquals(arr.get("iArr").stringValue(), "[0, 1, 255]");
-        assertEquals(arr.size(), 10);
+        assertEquals(arr.get("arr1").stringValue(), "{\"country\":\"x\", \"city\":\"y\", \"street\":\"z\", \"no\":3}");
+        assertEquals(arr.size(), 11);
+    }
+
+    @Test
+    public void testToJsonForNonJsonTypes() {
+        BRunUtil.invokeFunction(compileResult, "testToJsonStringForNonJsonTypes");
     }
 
     @Test
@@ -155,13 +162,18 @@ public class LangLibValueTest {
                             "varRecord=name=Gima address=country=Sri Lanka city=Colombo street=Palm Grove age=12");
     }
 
+    @Test
+    public void testToStringForTable() {
+        BRunUtil.invokeFunction(compileResult, "testToStringMethodForTable");
+    }
+
     @Test(dataProvider = "mergeJsonFunctions")
     public void testMergeJson(String function) {
         BValue[] returns = BRunUtil.invoke(compileResult, function);
         Assert.assertTrue(((BBoolean) returns[0]).booleanValue());
     }
 
-    @Test()
+    @Test
     public void xmlSequenceFragmentToString() {
         BValue[] returns = BRunUtil.invoke(compileResult, "xmlSequenceFragmentToString");
         Assert.assertEquals((returns[0]).stringValue(), "<def>DEF</def><ghi>1</ghi>");
@@ -180,6 +192,94 @@ public class LangLibValueTest {
             { "testMappingJsonWithIntersectionMergeSuccess" },
             { "testMergeJsonSuccessForValuesWithNonIntersectingCyclicRefererences" },
             { "testMergeJsonFailureForValuesWithIntersectingCyclicRefererences" }
+        };
+    }
+
+    @Test(dataProvider = "cloneWithTypeFunctions")
+    public void testCloneWithType(String function) {
+        BValue[] returns = BRunUtil.invoke(compileResult, function);
+    }
+
+    @DataProvider(name = "cloneWithTypeFunctions")
+    public Object[][] cloneWithTypeFunctions() {
+        return new Object[][] {
+                { "testCloneWithTypeJsonRec1" },
+                { "testCloneWithTypeJsonRec2" },
+                { "testCloneWithTypeOptionalFieldToMandotoryField" },
+                { "testCloneWithTypeAmbiguousTargetType" },
+                { "testCloneWithTypeForNilPositive" },
+                { "testCloneWithTypeForNilNegative" },
+                { "testCloneWithTypeNumeric1" },
+                { "testCloneWithTypeNumeric2" },
+                { "testCloneWithTypeNumeric3" },
+                { "testCloneWithTypeNumeric4" },
+                { "testCloneWithTypeNumeric5" },
+                { "testCloneWithTypeNumeric6" },
+                { "testCloneWithTypeNumeric7" },
+                { "testCloneWithTypeStringArray" }
+        };
+    }
+
+    @Test(dataProvider = "fromJsonWithTypeFunctions")
+    public void testFromJsonWithType(String function) {
+        BRunUtil.invoke(compileResult, function);
+    }
+
+    @DataProvider(name = "fromJsonWithTypeFunctions")
+    public Object[][] fromJsonWithTypeFunctions() {
+        return new Object[][] {
+                { "testFromJsonWIthTypeNegative" },
+                { "testFromJsonWithTypeRecord1" },
+                { "testFromJsonWithTypeRecord2" },
+                { "testFromJsonWithTypeRecord3" },
+                { "testFromJsonWithTypeAmbiguousTargetType" },
+                { "testFromJsonWithTypeXML" },
+                { "testFromJsonWithTypeRecordWithXMLField" },
+                { "testFromJsonWithTypeMap" },
+                { "testFromJsonWithTypeStringArray" },
+                { "testFromJsonWithTypeArrayNegative" },
+                { "testFromJsonWithTypeIntArray" },
+                { "testFromJsonWithTypeArrayNegative" },
+                { "testFromJsonWithTypeTable" }
+        };
+    }
+
+    @Test(dataProvider = "fromJsonStringWithTypeFunctions")
+    public void testFromJsonStringWithType(String function) {
+        BRunUtil.invoke(compileResult, function);
+    }
+
+    @DataProvider(name = "fromJsonStringWithTypeFunctions")
+    public Object[][] fromJsonStringWithTypeFunctions() {
+        return new Object[][] {
+                { "testFromJsonStringWithTypeJson" },
+                { "testFromJsonStringWithTypeRecord" },
+                { "testFromJsonStringWithAmbiguousType" },
+                { "testFromJsonStringWithTypeMap" },
+                { "testFromJsonStringWithTypeStringArray" },
+                { "testFromJsonStringWithTypeArrayNegative" },
+                { "testFromJsonStringWithTypeIntArray" },
+        };
+    }
+
+    @Test(dataProvider = "toJsonFunctions")
+    public void testToJson(String function) {
+        BRunUtil.invoke(compileResult, function);
+    }
+
+    @DataProvider(name = "toJsonFunctions")
+    public Object[][] toJsonFunctions() {
+        return new Object[][] {
+                { "testToJsonWithRecord1" },
+                { "testToJsonWithRecord2" },
+                { "testToJsonWithLiterals" },
+                { "testToJsonWithArray" },
+                { "testToJsonWithXML" },
+                { "testToJsonWithMap" },
+                { "testToJsonWithMapInt" },
+                { "testToJsonWithStringArray" },
+                { "testToJsonWithIntArray" },
+                { "testToJsonWithTable" }
         };
     }
 }

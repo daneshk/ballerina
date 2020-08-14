@@ -18,7 +18,6 @@
 package org.ballerinalang.jvm.values;
 
 import org.ballerinalang.jvm.BallerinaErrors;
-import org.ballerinalang.jvm.StringUtils;
 import org.ballerinalang.jvm.TypeChecker;
 import org.ballerinalang.jvm.services.ErrorHandlerUtils;
 import org.ballerinalang.jvm.types.BErrorType;
@@ -27,7 +26,6 @@ import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.TypeConstants;
 import org.ballerinalang.jvm.values.api.BError;
 import org.ballerinalang.jvm.values.api.BString;
-import org.ballerinalang.jvm.values.freeze.Status;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -35,6 +33,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 
 import static org.ballerinalang.jvm.BallerinaErrors.ERROR_PRINT_PREFIX;
 import static org.ballerinalang.jvm.util.BLangConstants.BLANG_SRC_FILE_SUFFIX;
@@ -54,44 +53,39 @@ public class ErrorValue extends BError implements RefValue {
 
     private static final long serialVersionUID = 1L;
     private final BType type;
-    private final BString reason;
+    private final BString message;
+    private final ErrorValue cause;
     private final Object details;
 
     @Deprecated
-    public ErrorValue(String reason, Object details) {
-        this(new BErrorType(TypeConstants.ERROR, BTypes.typeError.getPackage(),
-                            BTypes.typeString, TypeChecker.getType(details)), reason, details);
+    public ErrorValue(BString message, Object details) {
+        this(new BErrorType(TypeConstants.ERROR, BTypes.typeError.getPackage(), TypeChecker.getType(details)),
+                message, null, details);
     }
 
     @Deprecated
-    public ErrorValue(BType type, String reason, Object details) {
-        super(reason);
+    public ErrorValue(BType type, BString message, ErrorValue cause, Object details) {
+        super(message);
         this.type = type;
-        this.reason = StringUtils.fromString(reason);
-        this.details = details;
-    }
-
-    @Deprecated
-    public ErrorValue(BString reason, Object details) {
-        this(new BErrorType(TypeConstants.ERROR, BTypes.typeError.getPackage(),
-                            BTypes.typeString, TypeChecker.getType(details)), reason, details);
-    }
-
-    @Deprecated
-    public ErrorValue(BType type, BString reason, Object details) {
-        super(reason);
-        this.type = type;
-        this.reason = reason;
+        this.message = message;
+        this.cause = cause;
         this.details = details;
     }
 
     @Override
     public String stringValue() {
         if (isEmptyDetail()) {
-            return "error " + reason.getValue();
+            return "error " + message.getValue();
         }
-        return "error " + reason.getValue() + " " + org.ballerinalang.jvm.values.utils.StringUtils.getStringValue(
-                details);
+        return "error " + message.getValue() + " " + getCauseToString() +
+                org.ballerinalang.jvm.values.utils.StringUtils.getStringValue(details);
+    }
+
+    private String getCauseToString() {
+        if (cause != null) {
+            return org.ballerinalang.jvm.values.utils.StringUtils.getStringValue(cause) + " ";
+        }
+        return "";
     }
 
     @Override
@@ -111,11 +105,6 @@ public class ErrorValue extends BError implements RefValue {
         return this;
     }
 
-    @Override
-    public void attemptFreeze(Status freezeStatus) {
-        // do nothing, since error types are always frozen
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -129,22 +118,13 @@ public class ErrorValue extends BError implements RefValue {
     }
 
     /**
-     * Returns error reason.
+     * Returns error message.
      *
-     * @return reason string
+     * @return message string
      */
-    @Deprecated
-    public String getReason() {
-        return reason.getValue();
-    }
-
-    /**
-     * Returns error reason.
-     *
-     * @return reason string
-     */
-    public BString getErrorReason() {
-        return reason;
+    @Override
+    public BString getErrorMessage() {
+        return this.message;
     }
 
     /**
@@ -157,6 +137,11 @@ public class ErrorValue extends BError implements RefValue {
             return ((RefValue) details).copy(new HashMap<>());
         }
         return details;
+    }
+
+    @Override
+    public BError getCause() {
+        return this.cause;
     }
 
     @Override
@@ -191,7 +176,7 @@ public class ErrorValue extends BError implements RefValue {
      * @return stack trace string
      */
     public String getPrintableStackTrace() {
-        String errorMsg = getErrorMessage();
+        String errorMsg = getPrintableError();
         StringBuilder sb = new StringBuilder();
         sb.append(errorMsg);
         // Append function/action/resource name with package path (if any)
@@ -231,17 +216,18 @@ public class ErrorValue extends BError implements RefValue {
         sb.append(":").append(stackTraceElement.getLineNumber()).append(")");
     }
 
-    private String getErrorMessage() {
-        String errorMsg = "";
-        boolean reasonAdded = false;
-        if (reason != null && reason.length() != 0) {
-            errorMsg = reason.getValue();
-            reasonAdded = true;
+    private String getPrintableError() {
+        StringJoiner joiner = new StringJoiner(" ");
+
+        joiner.add(this.message.getValue());
+        if (this.cause != null) {
+            joiner.add("cause: " + this.cause.getMessage());
         }
-        if (details != null) {
-            errorMsg = errorMsg + (reasonAdded ? " " : "") + details.toString();
+        if (!isEmptyDetail()) {
+            joiner.add(this.details.toString());
         }
-        return errorMsg;
+
+        return joiner.toString();
     }
 
     private boolean isEmptyDetail() {
@@ -249,13 +235,5 @@ public class ErrorValue extends BError implements RefValue {
             return true;
         }
         return (details instanceof MapValue) && ((MapValue) details).isEmpty();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isFrozen() {
-        return true;
     }
 }

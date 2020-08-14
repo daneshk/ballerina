@@ -95,27 +95,31 @@ public class LSCompilerUtil {
             }
         } catch (IOException e) {
             logger.error("Unable to create untitled project directory, " +
-                                 "unsaved files might not work properly.");
+                    "unsaved files might not work properly.");
         }
     }
 
     /**
      * Prepare the compiler context.
      *
-     * @param packageID          Package Name
-     * @param packageRepository  Package Repository
-     * @param sourceRoot         The source root of the project
-     * @param documentManager    {@link WorkspaceDocumentManager} Document Manager
-     * @param compilerPhase      {@link CompilerPhase} Compiler Phase
+     * @param packageID            Package Name
+     * @param packageRepository    Package Repository
+     * @param sourceRoot           The source root of the project
+     * @param documentManager      {@link WorkspaceDocumentManager} Document Manager
+     * @param compilerPhase        {@link CompilerPhase} Compiler Phase
      * @param stopOnSemanticErrors Whether stop compilation on semantic errors
+     * @param enableNewParser      Whether enable new parser or not
      * @return {@link CompilerContext}     Compiler context
      */
     public static CompilerContext prepareCompilerContext(PackageID packageID, PackageRepository packageRepository,
                                                          String sourceRoot,
                                                          WorkspaceDocumentManager documentManager,
-                                                         CompilerPhase compilerPhase, boolean stopOnSemanticErrors) {
+                                                         CompilerPhase compilerPhase,
+                                                         boolean stopOnSemanticErrors,
+                                                         boolean enableNewParser) {
         LSContextManager lsContextManager = LSContextManager.getInstance();
-        CompilerContext context = lsContextManager.getCompilerContext(packageID, sourceRoot, documentManager);
+        CompilerContext context = lsContextManager.getCompilerContext(packageID, sourceRoot, documentManager,
+                enableNewParser);
         context.put(PackageRepository.class, packageRepository);
         CompilerOptions options = CompilerOptions.getInstance(context);
         options.put(PROJECT_DIR, sourceRoot);
@@ -131,9 +135,6 @@ public class LSCompilerUtil {
         options.put(SKIP_TESTS, String.valueOf(false));
         options.put(TOOLING_COMPILATION, String.valueOf(stopOnSemanticErrors));
 
-        // In order to capture the syntactic errors, need to go through the default error strategy
-        context.put(DefaultErrorStrategy.class, null);
-
         if (context.get(DiagnosticListener.class) instanceof CollectDiagnosticListener) {
             ((CollectDiagnosticListener) context.get(DiagnosticListener.class)).clearAll();
         }
@@ -148,18 +149,20 @@ public class LSCompilerUtil {
     /**
      * Prepare the compiler context.
      *
-     * @param packageRepository  Package Repository
-     * @param sourceRoot         The source root of the project
-     * @param documentManager    {@link WorkspaceDocumentManager} Document Manager
+     * @param packageRepository    Package Repository
+     * @param sourceRoot           The source root of the project
+     * @param documentManager      {@link WorkspaceDocumentManager} Document Manager
      * @param stopOnSemanticErrors Whether stop compilation on semantic errors
+     * @param enableNewParser      Whether enable new parser or not
      * @return {@link CompilerContext}     Compiler context
      */
     public static CompilerContext prepareCompilerContext(PackageRepository packageRepository,
                                                          String sourceRoot,
                                                          WorkspaceDocumentManager documentManager,
-                                                         boolean stopOnSemanticErrors) {
+                                                         boolean stopOnSemanticErrors,
+                                                         boolean enableNewParser) {
         return prepareCompilerContext(null, packageRepository, sourceRoot,
-                documentManager, CompilerPhase.TAINT_ANALYZE, stopOnSemanticErrors);
+                documentManager, CompilerPhase.TAINT_ANALYZE, stopOnSemanticErrors, enableNewParser);
     }
 
 
@@ -167,20 +170,22 @@ public class LSCompilerUtil {
      * Prepare the compiler context. Use this method if you don't have the source root but a LSDocument instance
      * for a lsDocument in the project.
      *
-     * @param pkgID         Package ID
-     * @param pkgRepo Package Repository
-     * @param lsDocument          LSDocument for Source Root
-     * @param docManager {@link WorkspaceDocumentManager} Document Manager
-     * @param compilerPhase {@link CompilerPhase} Compiler Phase
+     * @param pkgID                Package ID
+     * @param pkgRepo              Package Repository
+     * @param lsDocument           LSDocument for Source Root
+     * @param docManager           {@link WorkspaceDocumentManager} Document Manager
+     * @param compilerPhase        {@link CompilerPhase} Compiler Phase
      * @param stopOnSemanticErrors Whether stop compilation on semantic errors
+     * @param enableNewParser      Whether enable new parser or not
      * @return {@link CompilerContext}     Compiler context
      */
     public static CompilerContext prepareCompilerContext(PackageID pkgID, PackageRepository pkgRepo,
                                                          LSDocumentIdentifier lsDocument,
                                                          WorkspaceDocumentManager docManager,
-                                                         CompilerPhase compilerPhase, boolean stopOnSemanticErrors) {
+                                                         CompilerPhase compilerPhase, boolean stopOnSemanticErrors,
+                                                         boolean enableNewParser) {
         CompilerContext context = prepareCompilerContext(pkgID, pkgRepo, lsDocument.getProjectRoot(), docManager,
-                                                         compilerPhase, stopOnSemanticErrors);
+                compilerPhase, stopOnSemanticErrors, enableNewParser);
         Path sourceRootPath = lsDocument.getProjectRootPath();
         if (lsDocument.isWithinProject()) {
             LangServerFSProjectDirectory projectDirectory =
@@ -198,34 +203,35 @@ public class LSCompilerUtil {
      * Prepare the compiler context. Use this method if you don't have the source root but a LSDocument instance
      * for a document in the project.
      *
-     * @param packageID         Package Name
-     * @param packageRepository Package Repository
-     * @param sourceRoot        LSDocument for Source Root
-     * @param documentManager {@link WorkspaceDocumentManager} Document Manager
+     * @param packageID            Package Name
+     * @param packageRepository    Package Repository
+     * @param sourceRoot           LSDocument for Source Root
+     * @param documentManager      {@link WorkspaceDocumentManager} Document Manager
      * @param stopOnSemanticErrors Whether stop compilation on semantic errors
+     * @param enableNewParser      Whether enable new parser or not
      * @return {@link CompilerContext}     Compiler context
      */
     public static CompilerContext prepareCompilerContext(PackageID packageID, PackageRepository packageRepository,
                                                          LSDocumentIdentifier sourceRoot,
                                                          WorkspaceDocumentManager documentManager,
-                                                         boolean stopOnSemanticErrors) {
+                                                         boolean stopOnSemanticErrors, boolean enableNewParser) {
         return prepareCompilerContext(packageID, packageRepository, sourceRoot, documentManager,
-                                      CompilerPhase.COMPILER_PLUGIN, stopOnSemanticErrors);
+                CompilerPhase.COMPILER_PLUGIN, stopOnSemanticErrors, enableNewParser);
     }
 
     /**
      * Get compiler for the given context and file.
      *
-     * @param context               Language server context
-     * @param compilerContext       Compiler context
-     * @param customErrorStrategy   custom error strategy class
+     * @param context             Language server context
+     * @param compilerContext     Compiler context
+     * @param customErrorStrategy custom error strategy class
      * @return {@link Compiler}     ballerina compiler
      */
     static Compiler getCompiler(LSContext context, CompilerContext compilerContext, Class customErrorStrategy) {
         context.put(DocumentServiceKeys.COMPILER_CONTEXT_KEY, compilerContext);
         if (customErrorStrategy != null) {
             compilerContext.put(DefaultErrorStrategy.class,
-                                CustomErrorStrategyFactory.getCustomErrorStrategy(customErrorStrategy, context));
+                    CustomErrorStrategyFactory.getCustomErrorStrategy(customErrorStrategy, context));
         }
         BLangDiagnosticLogHelper.getInstance(compilerContext).resetErrorCount();
         Compiler compiler = Compiler.getInstance(compilerContext);
@@ -349,7 +355,7 @@ public class LSCompilerUtil {
     /**
      * Get the toml content from the config.
      *
-     * @param projectDirPath    Project Directory Path
+     * @param projectDirPath Project Directory Path
      * @return {@link Manifest} Toml Model
      */
     static Manifest getManifest(Path projectDirPath) {

@@ -29,6 +29,7 @@ import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
 
 import static org.ballerinalang.jvm.values.utils.ArrayUtils.checkIsArrayOnlyOperation;
+import static org.ballerinalang.util.BLangCompilerConstants.ARRAY_VERSION;
 
 /**
  * Native implementation of lang.array:sort((any|error)[], function).
@@ -36,7 +37,7 @@ import static org.ballerinalang.jvm.values.utils.ArrayUtils.checkIsArrayOnlyOper
  * @since 1.0
  */
 @BallerinaFunction(
-        orgName = "ballerina", packageName = "lang.array", functionName = "sort",
+        orgName = "ballerina", packageName = "lang.array", version = ARRAY_VERSION, functionName = "sort",
         args = {@Argument(name = "arr", type = TypeKind.ARRAY), @Argument(name = "func", type = TypeKind.FUNCTION)},
         returnType = {@ReturnType(type = TypeKind.ARRAY)},
         isPublic = true
@@ -78,11 +79,12 @@ public class Sort {
                 input.add(k, aux.get(j++));
             } else if (j > hi) {
                 input.add(k, aux.get(i++));
-            } else if (comparator.apply(new Object[]{strand, aux.get(j), true, aux.get(i), true}) < 0) {
+            } else if (comparator.call(new Object[]{strand, aux.get(j), true, aux.get(i), true}) < 0) {
                 input.add(k, aux.get(j++));
             } else {
                 input.add(k, aux.get(i++));
             }
         }
     }
+
 }

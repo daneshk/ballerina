@@ -18,6 +18,7 @@
 
 package org.ballerinalang.packerina.task;
 
+import org.ballerinalang.compiler.JarResolver;
 import org.ballerinalang.packerina.buildcontext.BuildContext;
 import org.ballerinalang.packerina.buildcontext.BuildContextField;
 import org.ballerinalang.packerina.buildcontext.sourcecontext.SingleFileContext;
@@ -32,12 +33,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.StringJoiner;
 
-import static org.ballerinalang.jvm.runtime.RuntimeConstants.SYSTEM_PROP_BAL_DEBUG;
 import static org.ballerinalang.jvm.util.BLangConstants.MODULE_INIT_CLASS_NAME;
 import static org.ballerinalang.packerina.buildcontext.sourcecontext.SourceType.SINGLE_BAL_FILE;
+import static org.ballerinalang.packerina.utils.DebugUtils.getDebugArgs;
+import static org.ballerinalang.packerina.utils.DebugUtils.isInDebugMode;
 import static org.ballerinalang.tool.LauncherUtils.createLauncherException;
 import static org.wso2.ballerinalang.compiler.util.ProjectDirConstants.BLANG_COMPILED_JAR_EXT;
 
@@ -48,27 +51,15 @@ public class RunExecutableTask implements Task {
 
     private final String[] args;
     private Path executableJarPath;
-    private boolean isInDebugMode = false;
-    private static final String DEBUG_ARGS_JAVA8 = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=";
 
     /**
      * Create a task to run the executable. This requires {@link CreateExecutableTask} to be completed.
-     *
-     * @param args          Arguments for the executable.
-     * @param isInDebugMode Flag to notify whether the executable jar should be run in the debug mode.
-     */
-    public RunExecutableTask(String[] args, boolean isInDebugMode) {
-        this(args);
-        this.isInDebugMode = isInDebugMode;
-    }
-
-    /**
-     * Create a task to run an executable from a given path.
      *
      * @param args Arguments for the executable.
      */
     public RunExecutableTask(String[] args) {
         this.args = args;
+        this.executableJarPath = null;
     }
 
     @Override
@@ -126,16 +117,16 @@ public class RunExecutableTask implements Task {
     private void runGeneratedExecutable(BLangPackage executableModule, BuildContext buildContext) {
 
         String initClassName = BFileUtil.getQualifiedClassName(executableModule.packageID.orgName.value,
-                executableModule.packageID.name.value, MODULE_INIT_CLASS_NAME);
+                executableModule.packageID.name.value, executableModule.packageID.version.value,
+                                                               MODULE_INIT_CLASS_NAME);
         try {
             List<String> commands = new ArrayList<>();
             commands.add("java");
             // Sets classpath with executable thin jar and all dependency jar paths.
             commands.add("-cp");
             commands.add(getAllClassPaths(executableModule, buildContext));
-            if (isInDebugMode) {
-                commands.add(String.format("%s,address=%s", DEBUG_ARGS_JAVA8,
-                        System.getProperty(SYSTEM_PROP_BAL_DEBUG)));
+            if (isInDebugMode()) {
+                commands.add(getDebugArgs(buildContext));
             }
             commands.add(initClassName);
             commands.addAll(Lists.of(args));
@@ -148,12 +139,13 @@ public class RunExecutableTask implements Task {
     }
 
     private String getAllClassPaths(BLangPackage executableModule, BuildContext buildContext) {
+        JarResolver jarResolver = buildContext.get(BuildContextField.JAR_RESOLVER);
         StringJoiner cp = new StringJoiner(File.pathSeparator);
         // Adds executable thin jar path.
         cp.add(this.executableJarPath.toString());
         // Adds all the dependency paths for modules.
-        buildContext.moduleDependencyPathMap.get(executableModule.packageID).moduleLibs.forEach(path ->
-                cp.add(path.toString()));
+        HashSet<Path> dependencySet = new HashSet<>(jarResolver.allDependencies(executableModule));
+        dependencySet.forEach(path -> cp.add(path.toString()));
         // Adds bre/lib/* to the class-path since we need to have ballerina runtime related dependencies
         // when running single bal files
         if (buildContext.getSourceType().equals(SINGLE_BAL_FILE)) {

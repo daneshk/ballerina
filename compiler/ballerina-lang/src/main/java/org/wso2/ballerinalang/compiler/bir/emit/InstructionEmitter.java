@@ -25,6 +25,7 @@ import org.wso2.ballerinalang.compiler.bir.model.BIRTerminator;
 import org.wso2.ballerinalang.compiler.bir.model.InstructionKind;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.wso2.ballerinalang.compiler.bir.emit.EmitterUtils.emitBasicBlockRef;
 import static org.wso2.ballerinalang.compiler.bir.emit.EmitterUtils.emitBinaryOpInstructionKind;
@@ -141,7 +142,7 @@ class InstructionEmitter {
         nMapStr += emitSpaces(1);
         nMapStr += "NewMap";
         nMapStr += emitSpaces(1);
-        nMapStr += emitTypeRef(ins.type, 0);
+        nMapStr += emitVarRef(ins.rhsOp);
         nMapStr += ";";
         return nMapStr;
     }
@@ -197,7 +198,10 @@ class InstructionEmitter {
         str += emitSpaces(1);
         str += emitTypeRef(ins.type, 0);
         str += "(";
-        str += emitVarRef(ins.reasonOp);
+        str += emitVarRef(ins.messageOp);
+        str += ",";
+        str += emitSpaces(1);
+        str += emitVarRef(ins.causeOp);
         str += ",";
         str += emitSpaces(1);
         str += emitVarRef(ins.detailOp);
@@ -219,8 +223,19 @@ class InstructionEmitter {
         str += emitModuleID(ins.pkgId);
         str += "::";
         str += emitName(ins.funcName);
+        str += emitClosureParams(ins.closureMaps);
         // TODO add params and closure maps
         str += ";";
+        return str;
+    }
+
+    private static String emitClosureParams(List<BIROperand> closureVars) {
+        String str = "";
+        if (closureVars.size() > 0) {
+            str += "(";
+            str += closureVars.stream().map(EmitterUtils::emitVarRef).collect(Collectors.joining(","));
+            str += ")";
+        }
         return str;
     }
 
@@ -237,7 +252,8 @@ class InstructionEmitter {
             str += "[";
             str += emitVarRef(ins.keyOp);
             str += "]";
-        } else if (ins.kind == InstructionKind.MAP_STORE || ins.kind == InstructionKind.ARRAY_STORE) {
+        } else if (ins.kind == InstructionKind.MAP_STORE || ins.kind == InstructionKind.ARRAY_STORE ||
+                ins.kind == InstructionKind.OBJECT_STORE) {
             str += "[";
             str += emitVarRef(ins.keyOp);
             str += "]";
@@ -374,6 +390,8 @@ class InstructionEmitter {
         str += emitSpaces(1);
         str += "=";
         str += emitSpaces(1);
+        str += ins.kind.toString().toLowerCase();
+        str += " ";
         // TODO emit unary op kind
         str += emitVarRef(ins.rhsOp);
         str += ";";
@@ -391,6 +409,7 @@ class InstructionEmitter {
         str += "newType";
         str += emitSpaces(1);
         str += emitTypeRef(ins.type, 0);
+        str = emitClosureParams(ins.closureVars);
         str += ";";
         return str;
     }

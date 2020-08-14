@@ -42,8 +42,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.ballerinalang.openapi.OpenApiMesseges.BAL_KEYWORDS;
+import static org.ballerinalang.openapi.OpenApiMesseges.BAL_TYPES;
 
 /**
  * This class will extract an intermediate context object from a give OpenApi Definition object, which
@@ -112,7 +114,7 @@ public class TypeExtractorUtil {
      * @return - List of Ballerina compatible operation types
      * @throws BallerinaOpenApiException - throws exception if extraction fails.
      */
-    private static List<BallerinaOpenApiOperation> extractOpenApiOperations(Map<PathItem.HttpMethod,
+    public static List<BallerinaOpenApiOperation> extractOpenApiOperations(Map<PathItem.HttpMethod,
             Operation> operationMap, String pathName) throws BallerinaOpenApiException {
         final Iterator<Map.Entry<PathItem.HttpMethod, Operation>> opIterator = operationMap.entrySet().iterator();
         List<BallerinaOpenApiOperation> typeOpList = new ArrayList<>();
@@ -302,13 +304,18 @@ public class TypeExtractorUtil {
             } else if ((schema.getType() != null && schema.getType().equals("object")) ||
                     schema.getProperties() != null) {
                 if (schema.getProperties() != null) {
+                    List<String> requiredBlock = schema.getRequired();
                     final Iterator<Map.Entry<String, Schema>> propertyIterator = schema.getProperties()
                             .entrySet().iterator();
                     List<BallerinaOpenApiSchema> propertyList = new ArrayList<>();
 
                     while (propertyIterator.hasNext()) {
                         final Map.Entry<String, Schema> nextProp = propertyIterator.next();
-                        final String propName = nextProp.getKey();
+                        String propName = nextProp.getKey();
+                        if (requiredBlock == null || (!requiredBlock.isEmpty() &&
+                                !requiredBlock.contains(propName))) {
+                            propName += "?";
+                        }
                         final Schema propValue = nextProp.getValue();
                         BallerinaOpenApiSchema propertySchema = new BallerinaOpenApiSchema();
 
@@ -379,13 +386,55 @@ public class TypeExtractorUtil {
      * @return - escaped string
      */
     public static String escapeIdentifier(String identifier) {
-        if (!identifier.matches("[a-zA-Z]+") || BAL_KEYWORDS.stream().anyMatch(identifier::equals)) {
-            identifier = identifier.replaceAll("([\\\\?!<>*\\-=^+()_{}|.$])", "\\\\$1");
-            identifier = "'" + identifier;
+        if (!identifier.matches("\\b[_a-zA-Z][_a-zA-Z0-9]*\\b") || BAL_KEYWORDS.stream().anyMatch(identifier::equals)) {
+            // TODO: Temporary fix(es) as identifier literals only support alphanumerics when writing this.
+            //  Refer - https://github.com/ballerina-platform/ballerina-lang/issues/18720
+            identifier = identifier.replace("-", "");
+            identifier = identifier.replace("$", "");
+    
+            // TODO: Remove this `if`. Refer - https://github.com/ballerina-platform/ballerina-lang/issues/23045
+            if (identifier.equals("error")) {
+                identifier = "_error";
+            } else {
+                identifier = identifier.replaceAll("([\\\\?!<>*\\-=^+()_{}|.$])", "$1");
+                if (identifier.endsWith("?")) {
+                    if (BAL_KEYWORDS.stream().anyMatch(Optional.ofNullable(identifier)
+                            .filter(sStr -> sStr.length() != 0)
+                            .map(sStr -> sStr.substring(0, sStr.length() - 1))
+                            .orElse(identifier)::equals)) {
+                        identifier = "'" + identifier;
+                    } else {
+                        return identifier;
+                    }
+                } else {
+                    identifier = "'" + identifier;
+                }
+            }
+            
         }
+        
         return identifier;
     }
-
+    
+    /**
+     * This method will escape special characters used in method names and identifiers.
+     *
+     * @param type - type or method name
+     * @return - escaped string
+     */
+    public static String escapeType(String type) {
+        if (!type.matches("\\b[_a-zA-Z][_a-zA-Z0-9]*\\b") ||
+            (BAL_KEYWORDS.stream().anyMatch(type::equals) && BAL_TYPES.stream().noneMatch(type::equals))) {
+            // TODO: Temporary fix(es) as identifier literals only support alphanumerics when writing this.
+            //  Refer - https://github.com/ballerina-platform/ballerina-lang/issues/18720
+            type = type.replace("-", "");
+            type = type.replace("$", "");
+            
+            type = type.replaceAll("([\\\\?!<>*\\-=^+()_{}|.$])", "\\\\$1");
+            type = "'" + type;
+        }
+        return type;
+    }
 
     /**
      * This method will extract reference type by splitting the reference string.

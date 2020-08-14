@@ -15,6 +15,7 @@
 // under the License.
 
 import ballerina/lang.'int as ints;
+import ballerina/log;
 import ballerina/stringutils;
 import ballerina/time;
 
@@ -45,18 +46,18 @@ public type Cookie object {
     public time:Time lastAccessedTime = time:currentTime();
     public boolean hostOnly = false;
 
-    # Initializes the `Cookie` object.
+    # Initializes the `http:Cookie` object.
     #
-    # + name - Name of the `Cookie`
-    # + value - Value of the `Cookie`
-    public function __init(string name, string value) {
+    # + name - Name of the `http:Cookie`
+    # + value - Value of the `http:Cookie`
+    public function init(string name, string value) {
         self.name = name;
         self.value = value;
     }
 
     # Checks the persistance of the cookie.
     #
-    # + return  - set to `false` if the cookie will be discarded at the end of the "session". Else, returns `true`.
+    # + return  - `false` if the cookie will be discarded at the end of the "session" or else `true`.
     public function isPersistent() returns boolean {
         if (self.expires is () && self.maxAge == 0) {
             return false;
@@ -66,13 +67,13 @@ public type Cookie object {
 
     # Checks the validity of the attributes of the cookie.
     #
-    # + return  - set to `true` if the attributes of the cookie are in the correct format. Otherwise, returns an `error`.
+    # + return  - `true` if the attributes of the cookie are in the correct format or else an `http:InvalidCookieError`
     public function isValid() returns boolean|InvalidCookieError {
         var name = self.name;
         if (name is string) {
             name = name.trim();
             if (name == "") {
-                return error(INVALID_COOKIE_ERROR, message = "Invalid name: Name cannot be empty");
+                return InvalidCookieError("Invalid name: Name cannot be empty");
             }
             self.name = name;
         }
@@ -80,7 +81,7 @@ public type Cookie object {
         if (value is string) {
             value = value.trim();
             if (value == "") {
-                return error(INVALID_COOKIE_ERROR, message = "Invalid value: Value cannot be empty");
+                return InvalidCookieError("Invalid value: Value cannot be empty");
             }
             self.value = value;
         }
@@ -88,7 +89,7 @@ public type Cookie object {
         if (domain is string) {
             domain = domain.trim().toLowerAscii();
             if (domain == "") {
-                return error(INVALID_COOKIE_ERROR, message = "Invalid domain: Domain cannot be empty");
+                return InvalidCookieError("Invalid domain: Domain cannot be empty");
             }
             if (domain.startsWith(".")) {
                 domain = domain.substring(1, domain.length());
@@ -102,7 +103,7 @@ public type Cookie object {
         if (path is string) {
             path = path.trim();
             if (path == "" || !path.startsWith("/") || stringutils:contains(path, "?")) {
-                return error(INVALID_COOKIE_ERROR, message = "Invalid path: Path is not in correct format");
+                return InvalidCookieError("Invalid path: Path is not in correct format");
             }
             self.path = path;
         }
@@ -110,11 +111,11 @@ public type Cookie object {
         if (expires is string) {
             expires = expires.trim();
             if (!toGmtFormat(self, expires)) {
-                return error(INVALID_COOKIE_ERROR, message = "Invalid time: Expiry-time is not in yyyy-mm-dd hh:mm:ss format");
+                return InvalidCookieError("Invalid time: Expiry-time is not in yyyy-mm-dd hh:mm:ss format");
             }
         }
         if (self.maxAge < 0) {
-            return error(INVALID_COOKIE_ERROR, message = "Invalid max-age: Max Age can not be less than zero");
+            return InvalidCookieError("Invalid max-age: Max Age can not be less than zero");
         }
         return true;
     }
@@ -229,9 +230,18 @@ function parseCookieHeader(string cookieStringValue) returns Cookie[] {
     string cookieValue = cookieStringValue;
     string[] nameValuePairs = stringutils:split(cookieValue, SEMICOLON + SPACE);
     foreach var item in nameValuePairs {
-        string[] nameValue = stringutils:split(item, EQUALS);
-        Cookie cookie = new (nameValue[0], nameValue[1]);
-        cookiesInRequest.push(cookie);
+        if (stringutils:matches(item, "^([^=]+)=.*$")) {
+            string[] nameValue = stringutils:split(item, EQUALS);
+            Cookie cookie;
+            if (nameValue.length() > 1) {
+                cookie = new (nameValue[0], nameValue[1]);
+            } else {
+                cookie = new (nameValue[0], "");
+            }
+            cookiesInRequest.push(cookie);
+        } else {
+            log:printError("Invalid cookie: " + item + ", which must be in the format as [{name}=].");
+        }
     }
     return cookiesInRequest;
 }

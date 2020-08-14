@@ -20,6 +20,7 @@ package org.wso2.ballerinalang.compiler.bir.codegen.interop;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
+import org.wso2.ballerinalang.compiler.util.ResolvedTypeBuilder;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
 
 import java.util.ArrayList;
@@ -43,6 +44,9 @@ class JMethodRequest {
     BType bReturnType = null;
     boolean returnsBErrorType = false;
     boolean restParamExist = false;
+    BType receiverType = null;
+
+    private static ResolvedTypeBuilder typeBuilder = new ResolvedTypeBuilder();
 
     private JMethodRequest() {
 
@@ -55,13 +59,13 @@ class JMethodRequest {
         jMethodReq.kind = methodValidationRequest.methodKind;
         jMethodReq.methodName = methodValidationRequest.name;
         jMethodReq.declaringClass = JInterop.loadClass(methodValidationRequest.klass, classLoader);
+        jMethodReq.receiverType = methodValidationRequest.receiverType;
         jMethodReq.paramTypeConstraints =
                 JInterop.buildParamTypeConstraints(methodValidationRequest.paramTypeConstraints, classLoader);
 
         BInvokableType bFuncType = methodValidationRequest.bFuncType;
         List<BType> currentParamTypes = bFuncType.paramTypes;
         List<BType> paramTypes = new ArrayList<>();
-
         if (!isEntryModuleValidation) {
             int i = 0;
             while (i < currentParamTypes.size()) {
@@ -80,7 +84,7 @@ class JMethodRequest {
         jMethodReq.bFuncParamCount = paramTypes.size();
         jMethodReq.bParamTypes = paramTypes.toArray(new BType[0]);
 
-        BType returnType = bFuncType.retType;
+        BType returnType = typeBuilder.build(bFuncType.retType);
         jMethodReq.bReturnType = returnType;
         if (returnType.tag == TypeTags.UNION) {
             for (BType bType : ((BUnionType) returnType).getMemberTypes()) {

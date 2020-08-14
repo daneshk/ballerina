@@ -74,7 +74,7 @@ function waitTest8() returns int {
 }
 
 function waitTest9() returns () {
-    future<()> f1 = runtime:timeout(2000);
+    future<()> f1 = start runtime:sleep(2000);
     () result = wait f1;
     return result;
 }
@@ -123,4 +123,19 @@ function add_panic(int i, int j) returns int {
         panic err;
     }
     return k;
+}
+
+type Student object {
+    public string name;
+    public function init() {
+        future<int> accumulator = start add(2, 4);
+        self.name = "ABC";
+    }
+};
+
+function asyncObjectCreationTest() {
+    Student s = new();
+    Student[] arr = [];
+    arr[0] = s;
+    arr[2] = s;
 }

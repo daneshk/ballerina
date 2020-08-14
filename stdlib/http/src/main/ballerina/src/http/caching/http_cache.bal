@@ -34,7 +34,7 @@ public type HttpCache object {
     # Creates the HTTP cache.
     #
     # + cacheConfig - The configurations for the HTTP cache
-    public function __init(CacheConfig cacheConfig) {
+    public function init(CacheConfig cacheConfig) {
         cache:CacheConfig config = {
             capacity: cacheConfig.capacity,
             evictionFactor: cacheConfig.evictionFactor
@@ -61,9 +61,7 @@ public type HttpCache object {
             // IMPT: The call to getBinaryPayload() builds the payload from the stream. If this is not done, the stream
             // will be read by the client and the response will be after the first cache hit.
             var binaryPayload = inboundResponse.getBinaryPayload();
-            log:printDebug(function() returns string {
-                return "Adding new cache entry for: " + key;
-            });
+            log:printDebug(() => "Adding new cache entry for: " + key);
             addEntry(self.cache, key, inboundResponse);
         }
     }
@@ -154,9 +152,7 @@ public type HttpCache object {
     function remove(string key) {
         cache:Error? result = self.cache.invalidate(key);
         if (result is cache:Error) {
-            log:printDebug(function() returns string {
-                return "Failed to remove the key: " + key + " from the HTTP cache.";
-            });
+            log:printDebug(() => "Failed to remove the key: " + key + " from the HTTP cache.");
         }
     }
 };
@@ -173,14 +169,12 @@ function isCacheableStatusCode(int statusCode) returns boolean {
 function addEntry(cache:Cache cache, string key, Response inboundResponse) {
     if (cache.hasKey(key)) {
         Response[] existingResponses = <Response[]>cache.get(key);
-        existingResponses[existingResponses.length()] = inboundResponse;
+        existingResponses.push(inboundResponse);
     } else {
         Response[] cachedResponses = [inboundResponse];
         cache:Error? result = cache.put(key, cachedResponses);
         if (result is cache:Error) {
-            log:printDebug(function() returns string {
-                return "Failed to add cached response with the key: " + key + " to the HTTP cache.";
-            });
+            log:printDebug(() => "Failed to add cached response with the key: " + key + " to the HTTP cache.");
         }
     }
 }
@@ -193,5 +187,5 @@ function weakValidatorEquals(string etag1, string etag2) returns boolean {
 }
 
 function getCacheKey(string httpMethod, string url) returns string {
-    return httpMethod + " " + url;
+    return string `${httpMethod} ${url}`;
 }

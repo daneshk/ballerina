@@ -20,6 +20,7 @@ package org.ballerinalang.stdlib.task.actions;
 import org.ballerinalang.jvm.BRuntime;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.stdlib.task.api.TaskServerConnector;
 import org.ballerinalang.stdlib.task.exceptions.SchedulingException;
 import org.ballerinalang.stdlib.task.impl.TaskServerConnectorImpl;
@@ -29,7 +30,7 @@ import org.ballerinalang.stdlib.task.objects.Task;
 import static org.ballerinalang.stdlib.task.utils.TaskConstants.MEMBER_LISTENER_CONFIGURATION;
 import static org.ballerinalang.stdlib.task.utils.TaskConstants.NATIVE_DATA_TASK_OBJECT;
 import static org.ballerinalang.stdlib.task.utils.TaskConstants.RECORD_TIMER_CONFIGURATION;
-import static org.ballerinalang.stdlib.task.utils.TaskConstants.SCHEDULER_ERROR_REASON;
+import static org.ballerinalang.stdlib.task.utils.TaskConstants.SCHEDULER_ERROR;
 import static org.ballerinalang.stdlib.task.utils.Utils.createTaskError;
 import static org.ballerinalang.stdlib.task.utils.Utils.processAppointment;
 import static org.ballerinalang.stdlib.task.utils.Utils.processTimer;
@@ -47,7 +48,7 @@ public class TaskActions {
         try {
             task.pause();
         } catch (SchedulingException e) {
-            return createTaskError(SCHEDULER_ERROR_REASON, e.getMessage());
+            return createTaskError(SCHEDULER_ERROR, e.getMessage());
         }
         return null;
     }
@@ -57,7 +58,7 @@ public class TaskActions {
         try {
             task.resume();
         } catch (SchedulingException e) {
-            return createTaskError(SCHEDULER_ERROR_REASON, e.getMessage());
+            return createTaskError(SCHEDULER_ERROR, e.getMessage());
         }
         return null;
     }
@@ -68,7 +69,7 @@ public class TaskActions {
             String serviceName = service.getType().getName();
             task.removeService(serviceName);
         } catch (Exception e) {
-            return createTaskError(SCHEDULER_ERROR_REASON, e.getMessage());
+            return createTaskError(SCHEDULER_ERROR, e.getMessage());
         }
         return null;
     }
@@ -119,7 +120,7 @@ public class TaskActions {
 
     @SuppressWarnings("unchecked")
     public static Object init(ObjectValue taskListener) {
-        MapValue<String, Object> configurations = taskListener.getMapValue(MEMBER_LISTENER_CONFIGURATION);
+        MapValue<BString, Object> configurations = taskListener.getMapValue(MEMBER_LISTENER_CONFIGURATION);
         String configurationTypeName = configurations.getType().getName();
         Task task;
         try {

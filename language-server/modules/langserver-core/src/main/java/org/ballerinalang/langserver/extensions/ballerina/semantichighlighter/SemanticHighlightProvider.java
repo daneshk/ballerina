@@ -18,8 +18,10 @@
 package org.ballerinalang.langserver.extensions.ballerina.semantichighlighter;
 
 import com.google.common.primitives.Ints;
-import org.ballerinalang.langserver.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.LSContext;
+import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
+import org.ballerinalang.langserver.commons.semantichighlighter.SemanticHighlightingInformation;
+import org.ballerinalang.langserver.commons.semantichighlighter.SemanticHighlightingParams;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentManager;
 import org.ballerinalang.langserver.compiler.DocumentServiceKeys;
 import org.ballerinalang.langserver.compiler.LSModuleCompiler;
@@ -53,7 +55,7 @@ public class SemanticHighlightProvider {
     public static SemanticHighlightingParams getHighlights(LSContext context, WorkspaceDocumentManager docManager)
             throws CompilationFailedException, HighlightingFailedException {
 
-        LSModuleCompiler.getBLangPackages(context, docManager, null, true, true, true);
+        LSModuleCompiler.getBLangPackages(context, docManager, null, true, true, true, true);
 
         List<SemanticHighlightProvider.HighlightInfo> highlights = new ArrayList<>();
         context.put(SemanticHighlightingKeys.SEMANTIC_HIGHLIGHTING_KEY, highlights);

@@ -22,6 +22,7 @@ import org.ballerinalang.jvm.types.BArrayType;
 import org.ballerinalang.jvm.types.BField;
 import org.ballerinalang.jvm.types.BMapType;
 import org.ballerinalang.jvm.types.BRecordType;
+import org.ballerinalang.jvm.types.BTableType;
 import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.BUnionType;
@@ -35,6 +36,7 @@ import org.ballerinalang.jvm.values.DecimalValue;
 import org.ballerinalang.jvm.values.ErrorValue;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.MapValueImpl;
+import org.ballerinalang.jvm.values.api.BString;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -86,40 +88,6 @@ public class TypeConverter {
                 return anyToFloat(inputValue, () ->
                         BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeFloat));
             case TypeTags.STRING_TAG:
-                return anyToString(inputValue);
-            case TypeTags.BOOLEAN_TAG:
-                return anyToBoolean(inputValue, () ->
-                        BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeBoolean));
-            case TypeTags.BYTE_TAG:
-                return anyToByte(inputValue, () ->
-                        BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeByte));
-            default:
-                throw new ErrorValue(BallerinaErrorReasons.NUMBER_CONVERSION_ERROR,
-                                     BLangExceptionHelper.getErrorMessage(
-                                             RuntimeErrors.INCOMPATIBLE_SIMPLE_TYPE_CONVERT_OPERATION,
-                                             inputType, inputValue, targetType));
-        }
-    }
-
-    public static Object convertValues_bstring(BType targetType, Object inputValue) {
-        BType inputType = TypeChecker.getType(inputValue);
-        switch (targetType.getTag()) {
-            case TypeTags.INT_TAG:
-            case TypeTags.SIGNED32_INT_TAG:
-            case TypeTags.SIGNED16_INT_TAG:
-            case TypeTags.SIGNED8_INT_TAG:
-            case TypeTags.UNSIGNED32_INT_TAG:
-            case TypeTags.UNSIGNED16_INT_TAG:
-            case TypeTags.UNSIGNED8_INT_TAG:
-                return anyToInt(inputValue, () ->
-                        BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeInt));
-            case TypeTags.DECIMAL_TAG:
-                return anyToDecimal(inputValue, () ->
-                        BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeDecimal));
-            case TypeTags.FLOAT_TAG:
-                return anyToFloat(inputValue, () ->
-                        BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeFloat));
-            case TypeTags.STRING_TAG:
                 return StringUtils.fromString(anyToString(inputValue));
             case TypeTags.BOOLEAN_TAG:
                 return anyToBoolean(inputValue, () ->
@@ -128,10 +96,10 @@ public class TypeConverter {
                 return anyToByte(inputValue, () ->
                         BallerinaErrors.createNumericConversionError(inputValue, BTypes.typeByte));
             default:
-                throw new ErrorValue(BallerinaErrorReasons.NUMBER_CONVERSION_ERROR,
-                                     BLangExceptionHelper.getErrorMessage(
-                                             RuntimeErrors.INCOMPATIBLE_SIMPLE_TYPE_CONVERT_OPERATION,
-                                             inputType, inputValue, targetType));
+                throw BallerinaErrors.createError(BallerinaErrorReasons.NUMBER_CONVERSION_ERROR,
+                                                  BLangExceptionHelper.getErrorMessage(
+                                                          RuntimeErrors.INCOMPATIBLE_SIMPLE_TYPE_CONVERT_OPERATION,
+                                                          inputType, inputValue, targetType));
         }
     }
 
@@ -261,43 +229,8 @@ public class TypeConverter {
     }
 
     // TODO: return only the first matching type
-    public static List<BType> getConvertibleTypes_bstring(Object inputValue, BType targetType) {
-        return getConvertibleTypes_bstring(inputValue, targetType, new ArrayList<>());
-    }
-
     public static List<BType> getConvertibleTypes(Object inputValue, BType targetType) {
         return getConvertibleTypes(inputValue, targetType, new ArrayList<>());
-    }
-
-    public static List<BType> getConvertibleTypes_bstring(Object inputValue, BType targetType,
-                                                          List<TypeValuePair> unresolvedValues) {
-        List<BType> convertibleTypes = new ArrayList<>();
-
-        int targetTypeTag = targetType.getTag();
-
-        switch (targetTypeTag) {
-            case TypeTags.UNION_TAG:
-                for (BType memType : ((BUnionType) targetType).getMemberTypes()) {
-                    convertibleTypes.addAll(getConvertibleTypes_bstring(inputValue, memType, unresolvedValues));
-                }
-                break;
-            case TypeTags.RECORD_TYPE_TAG:
-                if (isConvertibleToRecordType_bstring(inputValue, (BRecordType) targetType, unresolvedValues)) {
-                    convertibleTypes.add(targetType);
-                }
-                break;
-            case TypeTags.ANYDATA_TAG:
-                BType matchingType = TypeConverter.resolveMatchingTypeForUnion(inputValue, targetType);
-                if (matchingType != null) {
-                    convertibleTypes.add(matchingType);
-                }
-                break;
-            default:
-                if (TypeChecker.checkIsLikeType(inputValue, targetType, true)) {
-                    convertibleTypes.add(targetType);
-                }
-        }
-        return convertibleTypes;
     }
 
     public static List<BType> getConvertibleTypes(Object inputValue, BType targetType,
@@ -313,7 +246,7 @@ public class TypeConverter {
                 }
                 break;
             case TypeTags.RECORD_TYPE_TAG:
-                if (isConvertibleToRecordType(inputValue, (BRecordType) targetType, unresolvedValues)) {
+                if (isConvertibleToRecordType(inputValue, (BRecordType) targetType, false, unresolvedValues)) {
                     convertibleTypes.add(targetType);
                 }
                 break;
@@ -331,8 +264,43 @@ public class TypeConverter {
         return convertibleTypes;
     }
 
-    private static boolean isConvertibleToRecordType_bstring(Object sourceValue, BRecordType targetType,
-                                                             List<TypeValuePair> unresolvedValues) {
+    public static List<BType> getConvertibleTypesFromJson(Object value, BType targetType,
+                                                          List<TypeValuePair> unresolvedValues) {
+        List<BType> convertibleTypes = new ArrayList<>();
+
+        int targetTypeTag = targetType.getTag();
+
+        convertibleTypes.addAll(TypeConverter.getConvertibleTypes(value, targetType));
+
+        if (convertibleTypes.size() == 0) {
+            switch (targetTypeTag) {
+                case TypeTags.RECORD_TYPE_TAG:
+                    if (isConvertibleToRecordType(value, (BRecordType) targetType, true, unresolvedValues)) {
+                        convertibleTypes.add(targetType);
+                    }
+                    break;
+                case TypeTags.TABLE_TAG:
+                    if (((BTableType) targetType).getConstrainedType().getTag() == TypeTags.RECORD_TYPE_TAG ||
+                            ((BTableType) targetType).getConstrainedType().getTag() == TypeTags.MAP_TAG) {
+                        convertibleTypes.add(targetType);
+                    }
+                    break;
+                case TypeTags.XML_TAG:
+                case TypeTags.XML_ELEMENT_TAG:
+                case TypeTags.XML_COMMENT_TAG:
+                case TypeTags.XML_PI_TAG:
+                case TypeTags.XML_TEXT_TAG:
+                    if (TypeChecker.getType(value).getTag() == TypeTags.STRING_TAG) {
+                        convertibleTypes.add(targetType);
+                    }
+                    break;
+            }
+        }
+        return convertibleTypes;
+    }
+
+    private static boolean isConvertibleToRecordType(Object sourceValue, BRecordType targetType, boolean isFromJson,
+                                                     List<TypeValuePair> unresolvedValues) {
         if (!(sourceValue instanceof MapValueImpl)) {
             return false;
         }
@@ -367,68 +335,33 @@ public class TypeConverter {
             Map.Entry valueEntry = (Map.Entry) object;
             String fieldName = valueEntry.getKey().toString();
 
-            if (targetFieldTypes.containsKey(fieldName)) {
-                if (getConvertibleTypes_bstring(valueEntry.getValue(), targetFieldTypes.get(fieldName),
-                                        unresolvedValues).size() != 1) {
-                    return false;
-                }
-            } else if (!targetType.sealed) {
-                if (getConvertibleTypes_bstring(valueEntry.getValue(), restFieldType, unresolvedValues).size() != 1) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isConvertibleToRecordType(Object sourceValue, BRecordType targetType,
-                                                     List<TypeValuePair> unresolvedValues) {
-        if (!(sourceValue instanceof MapValueImpl)) {
-            return false;
-        }
-
-        TypeValuePair typeValuePair = new TypeValuePair(sourceValue, targetType);
-        if (unresolvedValues.contains(typeValuePair)) {
-            return true;
-        }
-        unresolvedValues.add(typeValuePair);
-
-        Map<String, BType> targetFieldTypes = new HashMap<>();
-        BType restFieldType = targetType.restFieldType;
-
-        for (BField field : targetType.getFields().values()) {
-            targetFieldTypes.put(field.getFieldName(), field.type);
-        }
-
-        MapValueImpl sourceMapValueImpl = (MapValueImpl) sourceValue;
-        for (Map.Entry targetTypeEntry : targetFieldTypes.entrySet()) {
-            String fieldName = targetTypeEntry.getKey().toString();
-
-            if (!sourceMapValueImpl.containsKey(fieldName)) {
-                BField targetField = targetType.getFields().get(fieldName);
-                if (Flags.isFlagOn(targetField.flags, Flags.REQUIRED)) {
-                    return false;
-                }
-            }
-        }
-
-        for (Object object : sourceMapValueImpl.entrySet()) {
-            Map.Entry valueEntry = (Map.Entry) object;
-            String fieldName = valueEntry.getKey().toString();
-
-            if (targetFieldTypes.containsKey(fieldName)) {
-                if (getConvertibleTypes(valueEntry.getValue(), targetFieldTypes.get(fieldName),
-                                        unresolvedValues).size() != 1) {
-                    return false;
-                }
-            } else if (!targetType.sealed) {
-                if (getConvertibleTypes(valueEntry.getValue(), restFieldType, unresolvedValues).size() != 1) {
+            if (isFromJson) {
+                if (targetFieldTypes.containsKey(fieldName)) {
+                    if (getConvertibleTypesFromJson(valueEntry.getValue(), targetFieldTypes.get(fieldName),
+                            unresolvedValues).size() != 1) {
+                        return false;
+                    }
+                } else if (!targetType.sealed) {
+                    if (getConvertibleTypesFromJson(valueEntry.getValue(), restFieldType,
+                            unresolvedValues).size() != 1) {
+                        return false;
+                    }
+                } else {
                     return false;
                 }
             } else {
-                return false;
+                if (targetFieldTypes.containsKey(fieldName)) {
+                    if (getConvertibleTypes(valueEntry.getValue(), targetFieldTypes.get(fieldName),
+                            unresolvedValues).size() != 1) {
+                        return false;
+                    }
+                } else if (!targetType.sealed) {
+                    if (getConvertibleTypes(valueEntry.getValue(), restFieldType, unresolvedValues).size() != 1) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
             }
         }
         return true;
@@ -631,14 +564,14 @@ public class TypeConverter {
         return intToUnsigned8(floatToInt(sourceVal));
     }
 
-    public static String stringToChar(Object sourceVal) {
+    public static BString stringToChar(Object sourceVal) {
         if (!isCharLiteralValue(sourceVal)) {
             throw BallerinaErrors.createNumericConversionError(sourceVal, BTypes.typeStringChar);
         }
-        return Objects.toString(sourceVal);
+        return StringUtils.fromString(Objects.toString(sourceVal));
     }
 
-    public static String anyToChar(Object sourceVal) {
+    public static BString anyToChar(Object sourceVal) {
         String value = Objects.toString(sourceVal);
         return stringToChar(value);
     }

@@ -16,17 +16,30 @@
 
 // This is a linked list data structure implementation, which is used for the eviction algorithm of the cache.
 
+# Represents a structure to keep data and references to the adjacent nodes of the linked list.
+#
+# + value - Value to be stored in the linked list node
+# + prev - Previous node of the linked list
+# + next - Next node of the linked list
 public type Node record {|
     any value;
     Node? prev = ();
     Node? next = ();
 |};
 
+# Represents a linked list, which is used to govern the cache eviction policy.
+#
+# + head - The first node of the linked list
+# + tail - The last node of the linked list
 public type LinkedList record {
     Node? head;
     Node? tail;
 };
 
+# Adds a node to the end of the provided linked list.
+#
+# + list - Linked list to which the provided node should be added
+# + node - The node, which should be added to the provided linked list
 public function addLast(LinkedList list, Node node) {
     if (list.tail is ()) {
         list.head = node;
@@ -40,6 +53,10 @@ public function addLast(LinkedList list, Node node) {
     list.tail = node;
 }
 
+# Adds a node to the start of the provided linked list.
+#
+# + list - Linked list to which the provided node should be added
+# + node - The node, which should be added to the provided linked list
 public function addFirst(LinkedList list, Node node) {
     if (list.head is ()) {
         list.head = node;
@@ -53,24 +70,43 @@ public function addFirst(LinkedList list, Node node) {
     list.head = node;
 }
 
-public function remove(LinkedList list, Node node) {
-    if (node.prev is ()) {
-        list.head = node.next;
-    } else {
-        Node prev = <Node>node.prev;
-        prev.next = node.next;
-    }
+// This flag is used to avoid concurrency issues occurring during the removing nodes from the linked-list.
+// Ballerina locks cannot be used for this since it may lead to unexpected results.
+boolean removeInProgress = false;
 
-    if (node.next is ()) {
-        list.tail = node.prev;
-    } else {
-        Node next = <Node>node.next;
-        next.prev = node.prev;
+# Removes a node from the provided linked list.
+#
+# + list - Linked list from which the provided node should be removed
+# + node - The node, which should be removed from the provided linked list
+public function remove(LinkedList list, Node node) {
+    // Using this flag, we prevent the concurrency issues, but this will avoid removing some nodes from the linked-list.
+    // Due to that, when the eviction happens, there can be situations where a node which is used recently is get
+    // removed from the cache.
+    if (!removeInProgress) {
+        removeInProgress = true;
+        if (node.prev is ()) {
+            list.head = node.next;
+        } else {
+            Node prev = <Node>node.prev;
+            prev.next = node.next;
+        }
+
+        if (node.next is ()) {
+            list.tail = node.prev;
+        } else {
+            Node next = <Node>node.next;
+            next.prev = node.prev;
+        }
+        node.next = ();
+        node.prev = ();
+        removeInProgress = false;
     }
-    node.next = ();
-    node.prev = ();
 }
 
+# Removes the last node from the provided linked list.
+#
+# + list - Linked list from which the last node should be removed
+# + return - Last node of the provided linked list or `()` if the last node is empty
 public function removeLast(LinkedList list) returns Node? {
     if (list.tail is ()) {
         return ();
@@ -84,6 +120,9 @@ public function removeLast(LinkedList list) returns Node? {
     return tail;
 }
 
+# Clears the provided linked list.
+#
+# + list - Linked list which should be cleared
 public function clear(LinkedList list) {
     list.head = ();
     list.tail = ();

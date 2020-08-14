@@ -17,29 +17,24 @@
 import ballerina/auth;
 import ballerina/log;
 
-type Detail record {
-    string message;
-    error cause?;
-};
+# Represents the LDAP error type with the message and the cause.
+public type LdapError distinct error;
 
-# Represents the LDAP error reason.
-public const LDAP_ERROR = "{ballerina/ldap}Error";
+# Represents LDAP module related errors.
+public type Error LdapError;
 
-# Represents the LDAP error type with details.
-public type Error error<LDAP_ERROR, Detail>;
-
-# Log and prepare `error` as a `auth:Error`.
+# Logs and prepares the `error` as an `auth:Error`.
 #
-# + message - Error message
+# + message - Error message as a `string`
 # + err - `error` instance
 # + return - Prepared `auth:Error` instance
 function prepareAuthError(string message, error? err = ()) returns auth:Error {
     log:printError(message, err);
     auth:Error authError;
     if (err is error) {
-        authError = error(auth:AUTH_ERROR, message = message, cause = err);
+        authError = auth:AuthError(message, err);
     } else {
-        authError = error(auth:AUTH_ERROR, message = message);
+        authError = auth:AuthError(message);
     }
     return authError;
 }

@@ -15,10 +15,10 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+
 package org.wso2.ballerinalang.compiler.bir.optimizer;
 
 import org.wso2.ballerinalang.compiler.bir.model.BIRAbstractInstruction;
-import org.wso2.ballerinalang.compiler.bir.model.BIRInstruction;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRBasicBlock;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRErrorEntry;
@@ -49,8 +49,10 @@ import java.util.stream.Collectors;
 public class BIROptimizer {
 
     private static final CompilerContext.Key<BIROptimizer> BIR_OPTIMIZER = new CompilerContext.Key<>();
-    private RHSTempVarOptimizer rhsTempVarOptimizer;
-    private LHSTempVarOptimizer lhsTempVarOptimizer;
+    private final RHSTempVarOptimizer rhsTempVarOptimizer;
+    private final LHSTempVarOptimizer lhsTempVarOptimizer;
+    private final BIRLockOptimizer lockOptimizer;
+    private final BirVariableOptimizer variableOptimizer;
 
     public static BIROptimizer getInstance(CompilerContext context) {
         BIROptimizer birGen = context.get(BIR_OPTIMIZER);
@@ -65,6 +67,8 @@ public class BIROptimizer {
         context.put(BIR_OPTIMIZER, this);
         this.rhsTempVarOptimizer = new RHSTempVarOptimizer();
         this.lhsTempVarOptimizer = new LHSTempVarOptimizer();
+        this.lockOptimizer = new BIRLockOptimizer();
+        this.variableOptimizer = new BirVariableOptimizer();
     }
 
     public void optimizePackage(BIRPackage pkg) {
@@ -73,15 +77,19 @@ public class BIROptimizer {
 
         // LHS temp var optimization
         this.lhsTempVarOptimizer.optimizeNode(pkg, null);
+
+        // Optimize lock statements
+        this.lockOptimizer.optimizeNode(pkg);
+        variableOptimizer.optimizeNode(pkg);
     }
 
     /**
      * This class is to optimize away unwanted temporary variables in right hand side of statements.
      */
     public static class RHSTempVarOptimizer extends BIRVisitor {
-        private Map<BIROperand, List<BIRAbstractInstruction>> tempVarUpdateInstructions = new HashMap<>();
-        private Map<BIROperand, List<BIRErrorEntry>> errorEntries = new HashMap<>();
-        private List<BIRVariableDcl> removedTempVars = new ArrayList<>();
+        private final Map<BIROperand, List<BIRAbstractInstruction>> tempVarUpdateInstructions = new HashMap<>();
+        private final Map<BIROperand, List<BIRErrorEntry>> errorEntries = new HashMap<>();
+        private final List<BIRVariableDcl> removedTempVars = new ArrayList<>();
 
         @Override
         public void visit(BIRPackage birPackage) {
@@ -102,7 +110,7 @@ public class BIROptimizer {
 
             // First add all the instructions within the function to a list.
             // This is done since the order of bb's cannot be guaranteed.
-            birFunction.parameters.values().forEach(paramBBs -> addDependency(paramBBs));
+            birFunction.parameters.values().forEach(this::addDependency);
             addDependency(birFunction.basicBlocks);
 
             // Then visit and replace any temp moves
@@ -190,8 +198,8 @@ public class BIROptimizer {
 
         private void addDependency(List<BIRBasicBlock> basicBlocks) {
             for (BIRBasicBlock bb : basicBlocks) {
-                for (BIRInstruction ins : bb.instructions) {
-                    addDependency((BIRAbstractInstruction) ins);
+                for (BIRNonTerminator ins : bb.instructions) {
+                    addDependency(ins);
                 }
                 addDependency(bb.terminator);
             }
@@ -212,7 +220,7 @@ public class BIROptimizer {
     }
 
     /**
-     * This class is to optimize away unwanted temp wars in left hand side of statements.
+     * This class is to optimize away unwanted temp vars in left hand side of statements.
      */
     public static class LHSTempVarOptimizer extends BIRVisitor {
         private OptimizerEnv env;
@@ -238,7 +246,6 @@ public class BIROptimizer {
         }
 
         public void optimizeNonTerm(BIRNonTerminator nonTerm, OptimizerEnv env) {
-            // TODO improve this
             if (nonTerm.kind != InstructionKind.MOVE) {
                 this.env.newInstructions.add(nonTerm);
             }
@@ -259,8 +266,8 @@ public class BIROptimizer {
 
             // Remove unused temp vars
             birFunction.localVars = birFunction.localVars.stream()
-                    .filter(l -> l.kind != VarKind.TEMP || !funcOpEnv.tempVars.keySet()
-                            .contains(l)).collect(Collectors.toList());
+                    .filter(l -> l.kind != VarKind.TEMP || !funcOpEnv.tempVars
+                            .containsKey(l)).collect(Collectors.toList());
         }
 
         @Override
@@ -396,12 +403,26 @@ public class BIROptimizer {
         @Override
         public void visit(BIRNonTerminator.NewStructure birNewStructure) {
             this.optimizeNode(birNewStructure.lhsOp, this.env);
+            for (BIRNode.BIRMappingConstructorEntry initialValue : birNewStructure.initialValues) {
+                if (initialValue.isKeyValuePair()) {
+                    BIRNode.BIRMappingConstructorKeyValueEntry keyValueEntry =
+                            (BIRNode.BIRMappingConstructorKeyValueEntry) initialValue;
+                    this.optimizeNode(keyValueEntry.keyOp, this.env);
+                    this.optimizeNode(keyValueEntry.valueOp, this.env);
+                    continue;
+                }
+                this.optimizeNode(((BIRNode.BIRMappingConstructorSpreadFieldEntry) initialValue).exprOp, this.env);
+            }
         }
 
         @Override
         public void visit(BIRNonTerminator.NewArray birNewArray) {
             this.optimizeNode(birNewArray.lhsOp, this.env);
             this.optimizeNode(birNewArray.sizeOp, this.env);
+
+            for (BIROperand value : birNewArray.values) {
+                this.optimizeNode(value, this.env);
+            }
         }
 
         @Override
@@ -414,14 +435,14 @@ public class BIROptimizer {
         @Override
         public void visit(BIRNonTerminator.NewError birNewError) {
             this.optimizeNode(birNewError.lhsOp, this.env);
-            this.optimizeNode(birNewError.reasonOp, this.env);
+            this.optimizeNode(birNewError.messageOp, this.env);
+            this.optimizeNode(birNewError.causeOp, this.env);
             this.optimizeNode(birNewError.detailOp, this.env);
         }
 
         @Override
         public void visit(BIRNonTerminator.FPLoad fpLoad) {
             this.optimizeNode(fpLoad.lhsOp, this.env);
-            //TODO check this
         }
 
         @Override
@@ -445,6 +466,13 @@ public class BIROptimizer {
         public void visit(BIRNonTerminator.TypeTest birTypeTest) {
             this.optimizeNode(birTypeTest.lhsOp, this.env);
             this.optimizeNode(birTypeTest.rhsOp, this.env);
+        }
+
+        @Override
+        public void visit(BIRNonTerminator.NewTable newTable) {
+            this.optimizeNode(newTable.lhsOp, this.env);
+            this.optimizeNode(newTable.keyColOp, this.env);
+            this.optimizeNode(newTable.dataOp, this.env);
         }
 
         @Override
@@ -514,12 +542,9 @@ public class BIROptimizer {
      */
     public static class OptimizerEnv {
         // key - temp var, value - real var
-        private Map<BIRVariableDcl, BIRVariableDcl> tempVars = new HashMap<>();
+        private final Map<BIRVariableDcl, BIRVariableDcl> tempVars = new HashMap<>();
 
         private List<BIRNonTerminator> newInstructions;
-
-        public OptimizerEnv() {
-        }
     }
 
 }

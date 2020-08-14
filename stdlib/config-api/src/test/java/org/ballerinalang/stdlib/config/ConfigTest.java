@@ -374,7 +374,7 @@ public class ConfigTest {
     }
 
     @Test(description = "Test retrieving an invalid int config", expectedExceptions = BLangRuntimeException.class,
-          expectedExceptionsMessageRegExp = ".*error: \\{ballerina/config\\}LookupError message=config key " +
+          expectedExceptionsMessageRegExp = ".*error: error occurred while trying to retrieve the value; config key " +
                   "'expirationPeriod' does not map to a valid 'int'.*")
     public void testGetAsIntNegative() throws IOException {
         BString key = new BString("expirationPeriod");
@@ -386,7 +386,7 @@ public class ConfigTest {
     }
 
     @Test(description = "Test retrieving an invalid float config", expectedExceptions = BLangRuntimeException.class,
-          expectedExceptionsMessageRegExp = ".*error: \\{ballerina/config\\}LookupError message=config key " +
+          expectedExceptionsMessageRegExp = ".*error: error occurred while trying to retrieve the value; config key " +
                   "'\"ballerina.http.host\"' does not map to a valid 'float'.*")
     public void testGetAsFloatNegative() throws IOException {
         BString key = new BString("\"ballerina.http.host\"");
@@ -398,7 +398,7 @@ public class ConfigTest {
     }
 
     @Test(description = "Test retrieving an invalid boolean config", expectedExceptions = BLangRuntimeException.class,
-          expectedExceptionsMessageRegExp = ".*error: \\{ballerina/config\\}LookupError message=config key " +
+          expectedExceptionsMessageRegExp = ".*error: error occurred while trying to retrieve the value; config key " +
                   "'expirationPeriod' does not map to a valid 'boolean'.*")
     public void testGetAsBooleanNegative() throws IOException {
         BString key = new BString("expirationPeriod");
@@ -462,6 +462,33 @@ public class ConfigTest {
         Assert.assertEquals((returnValues[1]).stringValue(), "{}");
         Assert.assertEquals((returnValues[2]).stringValue(),
                             "{\"color\":\"gray\", \"name\":\"Nail\", \"sku\":284758393}");
+    }
+
+    @Test(description = "Test retrieving a config value as a string array")
+    public void testGetAsStringArray() throws IOException {
+        BString key = new BString("listenerConfig.keyStore.paths");
+        BValue[] inputArg = {key};
+        registry.initRegistry(new HashMap<>(), null, ballerinaConfPath);
+        BValue[] returnValues = BRunUtil.invoke(compileResult, "testGetAsStringArray", inputArg);
+        Assert.assertTrue(returnValues[0] instanceof BString);
+        Assert.assertEquals(returnValues[0].stringValue(), "/etc");
+        Assert.assertEquals(returnValues[1].stringValue(), "/tmp");
+        Assert.assertEquals(returnValues[2].stringValue(), "/usr/lib/");
+    }
+
+    @Test(description = "Test retrieving a config value as a string map")
+    public void testGetAsStringMap() throws IOException {
+        BString key = new BString("employee");
+        BValue[] inputArg = {key};
+        registry.initRegistry(new HashMap<>(), null, ballerinaConfPath);
+        BValue[] returnVals = BRunUtil.invoke(compileResult, "testGetAsStringMap", inputArg);
+
+        Assert.assertFalse(returnVals == null || returnVals.length == 0 || returnVals[0] == null,
+                "Invalid Return Values.");
+        Assert.assertTrue(returnVals[0] instanceof BMap);
+        BMap table = (BMap) returnVals[0];
+        Assert.assertEquals(table.get("name").stringValue(), "John");
+        Assert.assertEquals(table.get("city").stringValue(), "Sydney");
     }
 
     @Test(expectedExceptions = IllegalStateException.class,

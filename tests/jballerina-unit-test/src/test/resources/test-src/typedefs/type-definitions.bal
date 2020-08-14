@@ -134,3 +134,92 @@ function testXml() returns T12 {
     T12 x = xml `<name>ballerina</name>`;
     return x;
 }
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type FB "A" | object { string f; function init(string f) { self.f = f; }};
+
+type Foo object {
+    string f;
+
+    function init(string f) {
+        self.f = f;
+    }
+};
+
+function testAnonObjectUnionTypeDef() {
+    FB a = new Foo("FOO");
+
+    if (!(a is Foo)) {
+        panic error("Invalid type for anonObjectUnionTypeDef");
+    }
+}
+
+type FB2 "A" | record { string f; };
+
+function testAnonRecordUnionTypeDef() {
+    FB2 a = { f : "FOO"};
+
+    if (!(a is record { string f; })) {
+        panic error("Error in union with anonymous record type definitions");
+    }
+}
+
+type FB3 "A" | record {| string f; |};
+
+function testAnonExclusiveRecordUnionTypeDef() {
+    FB3 a = { f : "FOO" };
+
+    if (!(a is record {| string f; |})) {
+        panic error("Error in union with anonymous record type definitions");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+type IntArray int[];
+type Int_String [int, string];
+
+function testIntArrayTypeDef() {
+    IntArray s = [1, 2];
+    anydata y = s;
+    IntArray|error b = y.cloneWithType(IntArray);
+    if (b is IntArray) {
+        assertEquality(s[0], b[0]);
+        assertEquality(s[1], b[1]);
+    } else {
+        assertFalse(true);
+    }
+}
+
+function testTupleTypeDef() {
+    Int_String x = [10, "XX"];
+    anydata y = x;
+    Int_String|error z = y.cloneWithType(Int_String);
+    if (z is Int_String) {
+        assertEquality(z[0], x[0]);
+        assertEquality(z[1], x[1]);
+    } else {
+        assertFalse(true);
+    }
+}
+
+type AssertionError error;
+
+const ASSERTION_ERROR_REASON = "AssertionError";
+
+function assertFalse(any|error actual) {
+    assertEquality(false, actual);
+}
+
+function assertEquality(any|error expected, any|error actual) {
+    if expected is anydata && actual is anydata && expected == actual {
+        return;
+    }
+
+    if expected === actual {
+        return;
+    }
+
+    panic AssertionError(ASSERTION_ERROR_REASON, message = "expected '" + expected.toString() + "', found '" + actual.toString () + "'");
+}

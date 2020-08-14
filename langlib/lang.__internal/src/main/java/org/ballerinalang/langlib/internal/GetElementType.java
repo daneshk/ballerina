@@ -21,6 +21,7 @@ package org.ballerinalang.langlib.internal;
 import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.jvm.types.BArrayType;
 import org.ballerinalang.jvm.types.BStreamType;
+import org.ballerinalang.jvm.types.BTableType;
 import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.TypeTags;
@@ -37,7 +38,7 @@ import org.ballerinalang.natives.annotations.ReturnType;
  * @since 1.2.0
  */
 @BallerinaFunction(
-        orgName = "ballerina", packageName = "lang.__internal", functionName = "getElementType",
+        orgName = "ballerina", packageName = "lang.__internal", version = "0.1.0", functionName = "getElementType",
         args = {@Argument(name = "td", type = TypeKind.UNION)},
         returnType = {@ReturnType(type = TypeKind.TYPEDESC)}
 )
@@ -50,11 +51,10 @@ public class GetElementType {
             return (TypedescValue) BValueCreator.createTypedescValue(((BArrayType) type).getElementType());
         } else if (type.getTag() == TypeTags.STREAM_TAG) {
             return (TypedescValue) BValueCreator.createTypedescValue(((BStreamType) type).getConstrainedType());
+        } else if (type.getTag() == TypeTags.TABLE_TAG) {
+            return (TypedescValue) BValueCreator.createTypedescValue(((BTableType) type).getConstrainedType());
         }
 
         return (TypedescValue) BValueCreator.createTypedescValue(BTypes.typeNull);
-    }
-    public static TypedescValue getElementType_bstring(Strand strand, Object td) {
-        return getElementType(strand, td);
     }
 }

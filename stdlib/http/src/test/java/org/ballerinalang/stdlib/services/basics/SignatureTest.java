@@ -52,7 +52,7 @@ public class SignatureTest {
 
         Assert.assertEquals(compileResult.getErrorCount(), 1);
         Assert.assertEquals(compileResult.getDiagnostics().clone()[0].getMessage(),
-                "first parameter should be of type ballerina/http:Caller");
+                "first parameter should be of type ballerina/http:1.0.0:Caller");
     }
 
     @Test()
@@ -62,7 +62,7 @@ public class SignatureTest {
 
         Assert.assertEquals(compileResult.getErrorCount(), 1);
         Assert.assertEquals(compileResult.getDiagnostics().clone()[0].getMessage(),
-                "second parameter should be of type ballerina/http:Request");
+                "second parameter should be of type ballerina/http:1.0.0:Request");
     }
 
     @Test()
@@ -72,7 +72,7 @@ public class SignatureTest {
 
         Assert.assertEquals(compileResult.getErrorCount(), 1);
         Assert.assertEquals(compileResult.getDiagnostics().clone()[0].getMessage(),
-                "second parameter should be of type ballerina/http:Request");
+                "second parameter should be of type ballerina/http:1.0.0:Request");
     }
 
     @Test()
@@ -98,7 +98,7 @@ public class SignatureTest {
         Assert.assertEquals(diag[0].getMessage(), "invalid resource parameter(s): cannot specify > 2 parameters " +
                 "without specifying path config and/or body config in the resource annotation");
         Assert.assertEquals(diag[1].getMessage(),
-                            "Invalid data binding param in the signature : expected 'person', but found 'ballerina'");
+                "Invalid data binding param in the signature : expected 'person', but found 'ballerina'");
     }
 
     @Test

@@ -19,16 +19,17 @@ package org.wso2.ballerinalang.compiler.desugar;
 
 import org.ballerinalang.model.elements.Flag;
 import org.ballerinalang.model.tree.NodeKind;
+import org.ballerinalang.model.tree.expressions.RecordLiteralNode;
 import org.wso2.ballerinalang.compiler.semantics.analyzer.Types;
 import org.wso2.ballerinalang.compiler.semantics.model.Scope;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolEnv;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BRecordTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BMapType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
-import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
 import org.wso2.ballerinalang.compiler.tree.BLangAnnotation;
 import org.wso2.ballerinalang.compiler.tree.BLangAnnotationAttachment;
 import org.wso2.ballerinalang.compiler.tree.BLangBlockFunctionBody;
@@ -37,6 +38,7 @@ import org.wso2.ballerinalang.compiler.tree.BLangExternalFunctionBody;
 import org.wso2.ballerinalang.compiler.tree.BLangFunction;
 import org.wso2.ballerinalang.compiler.tree.BLangIdentifier;
 import org.wso2.ballerinalang.compiler.tree.BLangImportPackage;
+import org.wso2.ballerinalang.compiler.tree.BLangInvokableNode;
 import org.wso2.ballerinalang.compiler.tree.BLangMarkdownDocumentation;
 import org.wso2.ballerinalang.compiler.tree.BLangNode;
 import org.wso2.ballerinalang.compiler.tree.BLangNodeVisitor;
@@ -51,6 +53,7 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangAnnotAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangArrowFunction;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangBinaryExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangCheckedExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangCommitExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstant;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangElvisExpr;
@@ -80,7 +83,10 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangServiceConstructorE
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangStatementExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangStringTemplateLiteral;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTableConstructorExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTableMultiKeyExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTernaryExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTransactionalExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTrapExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTupleVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeConversionExpr;
@@ -104,7 +110,6 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQName;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQuotedString;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLSequenceLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLTextLiteral;
-import org.wso2.ballerinalang.compiler.tree.statements.BLangAbort;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangAssignment;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBreak;
@@ -123,7 +128,9 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangPanic;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRecordDestructure;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRecordVariableDef;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangRetry;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangRetryTransaction;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangReturn;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangRollback;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangSimpleVariableDef;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangStatement;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangTransaction;
@@ -137,7 +144,6 @@ import org.wso2.ballerinalang.compiler.tree.types.BLangRecordTypeNode;
 import org.wso2.ballerinalang.compiler.util.CompilerContext;
 import org.wso2.ballerinalang.compiler.util.Name;
 import org.wso2.ballerinalang.compiler.util.Names;
-import org.wso2.ballerinalang.compiler.util.TypeTags;
 import org.wso2.ballerinalang.compiler.util.diagnotic.DiagnosticPos;
 
 import java.util.ArrayList;
@@ -212,6 +218,9 @@ public class ClosureDesugar extends BLangNodeVisitor {
 
         // Update function parameters.
         pkgNode.functions.forEach(this::updateFunctionParams);
+        pkgNode.typeDefinitions.stream()
+                .filter(typeDef -> typeDef.typeNode.getKind() == NodeKind.RECORD_TYPE)
+                .forEach(this::updateRecordInitFunction);
 
         result = pkgNode;
     }
@@ -320,6 +329,14 @@ public class ClosureDesugar extends BLangNodeVisitor {
             dupFuncType.paramTypes.add(i, mapSymbol.type);
             i++;
         }
+    }
+
+    private void updateRecordInitFunction(BLangTypeDefinition typeDef) {
+        BLangRecordTypeNode recordTypeNode = (BLangRecordTypeNode) typeDef.typeNode;
+        BInvokableSymbol initFnSym = recordTypeNode.initFunction.symbol;
+        BRecordTypeSymbol recordTypeSymbol = (BRecordTypeSymbol) typeDef.symbol;
+        recordTypeSymbol.initializerFunc.symbol = initFnSym;
+        recordTypeSymbol.initializerFunc.type = (BInvokableType) initFnSym.type;
     }
 
     /**
@@ -577,13 +594,13 @@ public class ClosureDesugar extends BLangNodeVisitor {
     }
 
     @Override
-    public void visit(BLangAbort abortNode) {
-        result = abortNode;
+    public void visit(BLangRetry retryNode) {
+        result = retryNode;
     }
 
     @Override
-    public void visit(BLangRetry retryNode) {
-        result = retryNode;
+    public void visit(BLangRetryTransaction retryTransaction) {
+        result = retryTransaction;
     }
 
     @Override
@@ -664,11 +681,23 @@ public class ClosureDesugar extends BLangNodeVisitor {
     @Override
     public void visit(BLangTransaction transactionNode) {
         transactionNode.transactionBody = rewrite(transactionNode.transactionBody, env);
-        transactionNode.onRetryBody = rewrite(transactionNode.onRetryBody, env);
-        transactionNode.committedBody = rewrite(transactionNode.committedBody, env);
-        transactionNode.abortedBody = rewrite(transactionNode.abortedBody, env);
-        transactionNode.retryCount = rewriteExpr(transactionNode.retryCount);
         result = transactionNode;
+    }
+
+    @Override
+    public void visit(BLangRollback rollbackNode) {
+        rollbackNode.expr = rewriteExpr(rollbackNode.expr);
+        result = rollbackNode;
+    }
+
+    @Override
+    public void visit(BLangTransactionalExpr transactionalExpr) {
+        result = transactionalExpr;
+    }
+
+    @Override
+    public void visit(BLangCommitExpr commitExpr) {
+        result = commitExpr;
     }
 
     @Override
@@ -685,6 +714,12 @@ public class ClosureDesugar extends BLangNodeVisitor {
     public void visit(BLangListConstructorExpr listConstructorExpr) {
         listConstructorExpr.exprs = rewriteExprs(listConstructorExpr.exprs);
         result = listConstructorExpr;
+    }
+
+    @Override
+    public void visit(BLangTableConstructorExpr tableConstructorExpr) {
+        rewriteExprs(tableConstructorExpr.recordLiteralList);
+        result = tableConstructorExpr;
     }
 
     @Override
@@ -738,6 +773,14 @@ public class ClosureDesugar extends BLangNodeVisitor {
         iExpr.requiredArgs = rewriteExprs(iExpr.requiredArgs);
         iExpr.restArgs = rewriteExprs(iExpr.restArgs);
         result = iExpr;
+    }
+
+    @Override
+    public void visit(BLangTableMultiKeyExpr tableMultiKeyExpr) {
+        List<BLangExpression> exprList = new ArrayList<>();
+        tableMultiKeyExpr.multiKeyIndexExprs.forEach(expression -> exprList.add(rewriteExpr(expression)));
+        tableMultiKeyExpr.multiKeyIndexExprs = exprList;
+        result = tableMultiKeyExpr;
     }
 
     public void visit(BLangTypeInit typeInitExpr) {
@@ -810,20 +853,21 @@ public class ClosureDesugar extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangLambdaFunction bLangLambdaFunction) {
-        bLangLambdaFunction.capturedClosureEnv = env.createClone();
-        bLangLambdaFunction.enclMapSymbols = collectClosureMapSymbols(bLangLambdaFunction.capturedClosureEnv,
-                bLangLambdaFunction);
+        SymbolEnv symbolEnv = env.createClone();
+        bLangLambdaFunction.capturedClosureEnv = symbolEnv;
+        BLangFunction enclInvokable = (BLangFunction) symbolEnv.enclInvokable;
+        // Save param closure map of the encl invokable.
+        bLangLambdaFunction.paramMapSymbolsOfEnclInvokable = enclInvokable.paramClosureMap;
+        boolean isWorker = bLangLambdaFunction.function.flagSet.contains(Flag.WORKER);
+        bLangLambdaFunction.enclMapSymbols = collectClosureMapSymbols(symbolEnv, enclInvokable, isWorker);
         result = bLangLambdaFunction;
     }
 
-    private TreeMap<Integer, BVarSymbol> collectClosureMapSymbols(SymbolEnv symbolEnv,
-                                                                  BLangLambdaFunction bLangLambdaFunction) {
-        // Save param closure map of the encl invokable.
-        bLangLambdaFunction.paramMapSymbolsOfEnclInvokable = ((BLangFunction) symbolEnv.enclInvokable).paramClosureMap;
-
+    private TreeMap<Integer, BVarSymbol> collectClosureMapSymbols(SymbolEnv symbolEnv, BLangInvokableNode enclInvokable,
+                                                                  boolean isWorker) {
         // Recursively iterate back to the encl invokable and get all map symbols visited.
         TreeMap<Integer, BVarSymbol> enclMapSymbols = new TreeMap<>();
-        while (symbolEnv != null && symbolEnv.enclInvokable == bLangLambdaFunction.capturedClosureEnv.enclInvokable) {
+        while (symbolEnv != null && symbolEnv.enclInvokable == enclInvokable) {
             BVarSymbol mapSym = getMapSymbol(symbolEnv.node);
 
             // Skip non-block bodies
@@ -834,7 +878,7 @@ public class ClosureDesugar extends BLangNodeVisitor {
 
             if (mapSym != null) {
                 enclMapSymbols.putIfAbsent(symbolEnv.envCount, mapSym);
-            } else if (bLangLambdaFunction.function.flagSet.contains(Flag.WORKER)) {
+            } else if (isWorker) {
                 // Create mapSymbol in outer function node when it contain workers and it's not already created.
                 // We need this to allow worker identifier to be used as a future.
                 mapSym = createMapSymbolIfAbsent(env.node, blockClosureMapCount);
@@ -1074,43 +1118,12 @@ public class ClosureDesugar extends BLangNodeVisitor {
      * @param mapSymbol  map symbol to be used
      */
     private void updateClosureVars(BLangSimpleVarRef varRefExpr, BVarSymbol mapSymbol) {
-        // Get type of the index based access expression.
-        BType typeOfExpr = getTypeOfIndexBasedAccessExpr(varRefExpr.type);
         // Create the index based access expression.
         BLangLiteral indexExpr = ASTBuilderUtil.createLiteral(varRefExpr.pos, symTable.stringType,
                 varRefExpr.varSymbol.name.value);
-        BLangIndexBasedAccess accessExpr = ASTBuilderUtil.createIndexBasesAccessExpr(varRefExpr.pos, typeOfExpr,
+        BLangIndexBasedAccess accessExpr = ASTBuilderUtil.createIndexBasesAccessExpr(varRefExpr.pos, varRefExpr.type,
                 mapSymbol, indexExpr);
-        // If its in the LHS of an assignment.
-        if (varRefExpr.lhsVar) {
-            // x = 1 ==> $innerMap$1["x"] = <any> 1
-            result = rewriteExpr(accessExpr);
-            return;
-        }
-        // int z = x + 1 ==> int z = <int>$innerMap$1["x"] + 1;
-        result = rewriteExpr(desugar.addConversionExprIfRequired(accessExpr, varRefExpr.type));
-    }
-
-    /**
-     * Get type of the index based access expression.
-     *
-     * @param bType type of the closure variable
-     * @return type of the index based access expression
-     */
-    private BType getTypeOfIndexBasedAccessExpr(BType bType) {
-        switch (bType.tag) {
-            case TypeTags.ARRAY:
-            case TypeTags.JSON:
-            case TypeTags.MAP:
-            case TypeTags.OBJECT:
-            case TypeTags.RECORD:
-            case TypeTags.TUPLE:
-            case TypeTags.XML:
-                return bType;
-            default:
-                // If its any other type return the any|error.
-                return BUnionType.create(null, symTable.anyType, symTable.errorType);
-        }
+        result = rewriteExpr(accessExpr);
     }
 
     @Override
@@ -1151,6 +1164,13 @@ public class ClosureDesugar extends BLangNodeVisitor {
         mapKeyAccessExpr.indexExpr = rewriteExpr(mapKeyAccessExpr.indexExpr);
         mapKeyAccessExpr.expr = rewriteExpr(mapKeyAccessExpr.expr);
         result = mapKeyAccessExpr;
+    }
+
+    @Override
+    public void visit(BLangIndexBasedAccess.BLangTableAccessExpr tableKeyAccessExpr) {
+        tableKeyAccessExpr.indexExpr = rewriteExpr(tableKeyAccessExpr.indexExpr);
+        tableKeyAccessExpr.expr = rewriteExpr(tableKeyAccessExpr.expr);
+        result = tableKeyAccessExpr;
     }
 
     @Override
@@ -1205,11 +1225,42 @@ public class ClosureDesugar extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangRecordLiteral.BLangMapLiteral mapLiteral) {
+        for (RecordLiteralNode.RecordField field : mapLiteral.fields) {
+            if (field.isKeyValueField()) {
+                BLangRecordLiteral.BLangRecordKeyValueField keyValueField =
+                        (BLangRecordLiteral.BLangRecordKeyValueField) field;
+                keyValueField.key.expr = rewriteExpr(keyValueField.key.expr);
+                keyValueField.valueExpr = rewriteExpr(keyValueField.valueExpr);
+                continue;
+            }
+
+            BLangRecordLiteral.BLangRecordSpreadOperatorField spreadField =
+                    (BLangRecordLiteral.BLangRecordSpreadOperatorField) field;
+            spreadField.expr = rewriteExpr(spreadField.expr);
+        }
         result = mapLiteral;
     }
 
     @Override
     public void visit(BLangRecordLiteral.BLangStructLiteral structLiteral) {
+        SymbolEnv symbolEnv = env.createClone();
+        BLangFunction enclInvokable = (BLangFunction) symbolEnv.enclInvokable;
+        structLiteral.enclMapSymbols = collectClosureMapSymbols(symbolEnv, enclInvokable, false);
+
+        for (RecordLiteralNode.RecordField field : structLiteral.fields) {
+            if (field.isKeyValueField()) {
+                BLangRecordLiteral.BLangRecordKeyValueField keyValueField =
+                        (BLangRecordLiteral.BLangRecordKeyValueField) field;
+                keyValueField.key.expr = rewriteExpr(keyValueField.key.expr);
+                keyValueField.valueExpr = rewriteExpr(keyValueField.valueExpr);
+                continue;
+            }
+
+            BLangRecordLiteral.BLangRecordSpreadOperatorField spreadField =
+                    (BLangRecordLiteral.BLangRecordSpreadOperatorField) field;
+            spreadField.expr = rewriteExpr(spreadField.expr);
+        }
+
         result = structLiteral;
     }
 
@@ -1312,6 +1363,9 @@ public class ClosureDesugar extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangInvocation.BLangActionInvocation aIExpr) {
+        aIExpr.expr = rewriteExpr(aIExpr.expr);
+        aIExpr.requiredArgs = rewriteExprs(aIExpr.requiredArgs);
+        aIExpr.restArgs = rewriteExprs(aIExpr.restArgs);
         result = aIExpr;
     }
 

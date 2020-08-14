@@ -58,8 +58,6 @@ public class ConnectionInitTest {
     public void testWithMandatoryFields() {
         BValue[] returnVal = BRunUtil.invoke(result, "testConnectionWithNoFields");
         Assert.assertTrue(returnVal[0] instanceof BError);
-        BError error = (BError) returnVal[0];
-        Assert.assertEquals(error.getReason(), SQLDBUtils.SQL_APPLICATION_ERROR_REASON);
     }
 
     @Test
@@ -92,9 +90,10 @@ public class ConnectionInitTest {
         Assert.assertFalse(returnVal[0] instanceof BError);
         Assert.assertTrue(returnVal[0] instanceof BMap);
         BMap connectionPool = (BMap) returnVal[0];
-        Assert.assertEquals(connectionPool.get(Constants.ConnectionPool.MAX_CONNECTION_LIFE_TIME_SECONDS).stringValue()
-                , "1800");
-        Assert.assertEquals(connectionPool.get(Constants.ConnectionPool.MAX_OPEN_CONNECTIONS).stringValue(), "25");
+        Assert.assertEquals(connectionPool.get(
+                Constants.ConnectionPool.MAX_CONNECTION_LIFE_TIME_SECONDS.getValue()).stringValue(), "1800");
+        Assert.assertEquals(connectionPool.get(
+                Constants.ConnectionPool.MAX_OPEN_CONNECTIONS.getValue()).stringValue(), "25");
     }
 
     @Test

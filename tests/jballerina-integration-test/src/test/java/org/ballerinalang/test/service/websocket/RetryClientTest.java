@@ -37,16 +37,17 @@ public class RetryClientTest extends WebSocketTestCommons {
 
     private WebSocketRemoteServer remoteServer;
     private WebSocketTestClient client;
-    private static final String url =  "ws://localhost:21030";
-    private static final int port = 15300;
+    private static final String URL =  "ws://localhost:21030";
+    private static final int PORT = 15300;
 
     @Test(description = "Tests the retry function using the WebSocket client (Restart the server and send the data")
     public void testRetry() throws URISyntaxException, InterruptedException, BallerinaTestException {
         remoteServer = initiateServer();
-        client = initiateClient(url);
+        client = initiateClient(URL);
         sendTextDataAndAssert("Hi");
         restartServerAndGiveTimeClientConnectToServer();
         sendTextDataAndAssert("Hi madam");
+        client.sendText("close");
         closeConnection();
     }
 
@@ -54,12 +55,13 @@ public class RetryClientTest extends WebSocketTestCommons {
             "Restart the server twice and send the data for every restart)")
     public void testMultipleRetryAttempts() throws URISyntaxException, InterruptedException, BallerinaTestException {
         remoteServer = initiateServer();
-        client = initiateClient(url);
+        client = initiateClient(URL);
         sendTextDataAndAssert("Hi");
         restartServerAndGiveTimeClientConnectToServer();
         sendTextDataAndAssert("Hi madam");
         restartServerAndGiveTimeClientConnectToServer();
         sendBinaryDataAndAssert();
+        client.sendText("close");
         closeConnection();
     }
 
@@ -83,15 +85,16 @@ public class RetryClientTest extends WebSocketTestCommons {
             "Restart the server and check the countDownLatch for handshake)")
     public void testCountdownLatchForRetry() throws URISyntaxException, InterruptedException, BallerinaTestException {
         remoteServer = initiateServer();
-        client = initiateClient(url);
+        client = initiateClient(URL);
         sendBinaryDataAndAssert();
         restartServerAndGiveTimeClientConnectToServer();
         sendBinaryDataAndAssert();
+        client.sendText("close");
         closeConnection();
     }
 
     private WebSocketRemoteServer initiateServer() throws InterruptedException, BallerinaTestException {
-        remoteServer = new WebSocketRemoteServer(port);
+        remoteServer = new WebSocketRemoteServer(PORT);
         remoteServer.run();
         return remoteServer;
     }
@@ -112,7 +115,8 @@ public class RetryClientTest extends WebSocketTestCommons {
         CountDownLatch latchForRestart = new CountDownLatch(1);
         latchForRestart.await(7, TimeUnit.SECONDS);
         remoteServer.run();
-        latchForRestart.await(2, TimeUnit.SECONDS);
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(2, TimeUnit.SECONDS);
     }
 
     private void sendTextDataAndAssert(String text) throws InterruptedException {

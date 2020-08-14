@@ -29,6 +29,7 @@ import org.ballerinalang.jvm.values.FPValue;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.jvm.values.api.BArray;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.jvm.values.api.BValueCreator;
 import org.ballerinalang.jvm.values.connector.NonBlockingCallback;
 import org.ballerinalang.messaging.kafka.observability.KafkaMetricsUtil;
@@ -44,6 +45,8 @@ import java.util.regex.Pattern;
 
 import static org.ballerinalang.messaging.kafka.utils.KafkaConstants.CONSUMER_ERROR;
 import static org.ballerinalang.messaging.kafka.utils.KafkaConstants.NATIVE_CONSUMER;
+import static org.ballerinalang.messaging.kafka.utils.KafkaConstants.ON_PARTITION_ASSIGNED_METADATA;
+import static org.ballerinalang.messaging.kafka.utils.KafkaConstants.ON_PARTITION_REVOKED_METADATA;
 import static org.ballerinalang.messaging.kafka.utils.KafkaUtils.createKafkaError;
 import static org.ballerinalang.messaging.kafka.utils.KafkaUtils.getStringListFromStringBArray;
 import static org.ballerinalang.messaging.kafka.utils.KafkaUtils.getTopicNamesString;
@@ -86,11 +89,11 @@ public class SubscriptionHandler {
      * @param topicRegex     Regex to match topics to subscribe.
      * @return {@code ErrorValue}, if there's any error, null otherwise.
      */
-    public static Object subscribeToPattern(ObjectValue consumerObject, String topicRegex) {
+    public static Object subscribeToPattern(ObjectValue consumerObject, BString topicRegex) {
         KafkaTracingUtil.traceResourceInvocation(Scheduler.getStrand(), consumerObject);
         KafkaConsumer kafkaConsumer = (KafkaConsumer) consumerObject.getNativeData(NATIVE_CONSUMER);
         try {
-            kafkaConsumer.subscribe(Pattern.compile(topicRegex));
+            kafkaConsumer.subscribe(Pattern.compile(topicRegex.getValue()));
             Set<String> topicsList = kafkaConsumer.subscription();
             KafkaMetricsUtil.reportBulkSubscription(consumerObject, topicsList);
         } catch (IllegalArgumentException | IllegalStateException | KafkaException e) {
@@ -184,7 +187,8 @@ public class SubscriptionHandler {
         @Override
         public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
             Object[] inputArgs = {null, consumer, true, getPartitionsArray(partitions), true};
-            this.scheduler.schedule(inputArgs, onPartitionsRevoked.getConsumer(), strand, null);
+            this.scheduler.schedule(inputArgs, onPartitionsRevoked.getConsumer(), strand, null, null,
+                                    ON_PARTITION_REVOKED_METADATA);
         }
 
         /**
@@ -193,15 +197,16 @@ public class SubscriptionHandler {
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
             Object[] inputArgs = {null, consumer, true, getPartitionsArray(partitions), true};
-            this.scheduler.schedule(inputArgs, onPartitionsAssigned.getConsumer(), strand, null);
+            this.scheduler.schedule(inputArgs, onPartitionsAssigned.getConsumer(), strand, null, null,
+                                    ON_PARTITION_ASSIGNED_METADATA);
         }
 
         private BArray getPartitionsArray(Collection<TopicPartition> partitions) {
             BArray topicPartitionArray = BValueCreator.createArrayValue(
                     new BArrayType(getTopicPartitionRecord().getType()));
             for (TopicPartition partition : partitions) {
-                MapValue<String, Object> topicPartition = populateTopicPartitionRecord(partition.topic(),
-                                                                                       partition.partition());
+                MapValue<BString, Object> topicPartition = populateTopicPartitionRecord(partition.topic(),
+                                                                                        partition.partition());
                 topicPartitionArray.append(topicPartition);
             }
             return topicPartitionArray;

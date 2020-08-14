@@ -81,6 +81,16 @@ public class SnippetGenerator {
     }
 
     /**
+     * Get default keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getDefaultKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.DEFAULT, "default", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
      * Get abstract keyword Snippet Block.
      *
      * @return {@link SnippetBlock}     Generated Snippet Block
@@ -101,6 +111,16 @@ public class SnippetGenerator {
     }
 
     /**
+     * Get readonly keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getReadonlyKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.READONLY, "readonly ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
      * Get external keyword Snippet Block.
      *
      * @return {@link SnippetBlock}     Generated Snippet Block
@@ -117,6 +137,26 @@ public class SnippetGenerator {
      */
     public static SnippetBlock getTypeofKeywordSnippet() {
         return new SnippetBlock(ItemResolverConstants.TYPEOF, "typeof ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get commit keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getCommitKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.COMMIT, "commit;", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get is keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getIsKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.IS, "is", ItemResolverConstants.KEYWORD_TYPE,
                                 SnippetType.KEYWORD);
     }
 
@@ -178,6 +218,26 @@ public class SnippetGenerator {
      */
     public static SnippetBlock getStartKeywordSnippet() {
         return new SnippetBlock(ItemResolverConstants.START_KEYWORD, "start ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get as Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getAsKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.AS_KEYWORD, "as ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get From Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getFromKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.FROM_KEYWORD, "from ", ItemResolverConstants.KEYWORD_TYPE,
                                 SnippetType.KEYWORD);
     }
 
@@ -389,11 +449,23 @@ public class SnippetGenerator {
      *
      * @return {@link SnippetBlock}     Generated Snippet Block
      */
-    public static SnippetBlock getNamespaceDeclarationSnippet() {
+    public static SnippetBlock getXMLNSDeclarationSnippet() {
         String snippet = "xmlns \"${1}\" as ${2:ns};";
 
         return new SnippetBlock(ItemResolverConstants.XMLNS, snippet, ItemResolverConstants.SNIPPET_TYPE,
                                 SnippetType.STATEMENT);
+    }
+
+    /**
+     * Get Object Type Descriptor Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getObjectTypeDescSnippet() {
+        String snippet = "object {" + CommonUtil.LINE_SEPARATOR + "\t${1}" + CommonUtil.LINE_SEPARATOR + "};";
+
+        return new SnippetBlock(ItemResolverConstants.OBJECT_TYPE, snippet, ItemResolverConstants.SNIPPET_TYPE,
+                                SnippetType.SNIPPET);
     }
 
     /**
@@ -470,6 +542,18 @@ public class SnippetGenerator {
     }
 
     /**
+     * Get Record Type Descriptor Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getRecordTypeDescSnippet() {
+        String snippet = "record {" + CommonUtil.LINE_SEPARATOR + "\t${1}" + CommonUtil.LINE_SEPARATOR + "};";
+
+        return new SnippetBlock(ItemResolverConstants.RECORD_TYPE, snippet, ItemResolverConstants.SNIPPET_TYPE,
+                                SnippetType.SNIPPET);
+    }
+
+    /**
      * Get Record Definition Snippet Block.
      *
      * @return {@link SnippetBlock}     Generated Snippet Block
@@ -479,6 +563,18 @@ public class SnippetGenerator {
                 + CommonUtil.LINE_SEPARATOR + "};";
 
         return new SnippetBlock(ItemResolverConstants.RECORD_TYPE, snippet, ItemResolverConstants.SNIPPET_TYPE,
+                                SnippetType.SNIPPET);
+    }
+
+    /**
+     * Get Closed Record Type Descriptor Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getClosedRecordTypeDescSnippet() {
+        String snippet = "record {|" + CommonUtil.LINE_SEPARATOR + "\t${1}" + CommonUtil.LINE_SEPARATOR + "|};";
+
+        return new SnippetBlock(ItemResolverConstants.CLOSED_RECORD_TYPE, snippet, ItemResolverConstants.SNIPPET_TYPE,
                                 SnippetType.SNIPPET);
     }
 
@@ -753,16 +849,6 @@ public class SnippetGenerator {
     }
 
     /**
-     * Get Retry Statement Snippet Block.
-     *
-     * @return {@link SnippetBlock}     Generated Snippet Block
-     */
-    public static SnippetBlock getRetryStatementSnippet() {
-        return new SnippetBlock(ItemResolverConstants.RETRY, "retry;", ItemResolverConstants.STATEMENT_TYPE,
-                                SnippetType.STATEMENT);
-    }
-
-    /**
      * Get Return Statement Snippet Block.
      *
      * @return {@link SnippetBlock}     Generated Snippet Block
@@ -904,12 +990,21 @@ public class SnippetGenerator {
      * @return {@link SnippetBlock}     Generated Snippet Block
      */
     public static SnippetBlock getTransactionStatementSnippet() {
-        String snippet = "transaction with retries = ${1:0} {" + CommonUtil.LINE_SEPARATOR
-                + "\t${2}" + CommonUtil.LINE_SEPARATOR + "} onretry {" + CommonUtil.LINE_SEPARATOR + "\t${3}"
-                + CommonUtil.LINE_SEPARATOR + "} committed {" + CommonUtil.LINE_SEPARATOR + "\t${4}"
-                + CommonUtil.LINE_SEPARATOR + "} aborted {" + CommonUtil.LINE_SEPARATOR + "\t${5}"
-                + CommonUtil.LINE_SEPARATOR + "}";
+        String snippet = "transaction {" + CommonUtil.LINE_SEPARATOR
+                + "\t${1}" + CommonUtil.LINE_SEPARATOR + "}";
         return new SnippetBlock(ItemResolverConstants.TRANSACTION, snippet, ItemResolverConstants.STATEMENT_TYPE,
+                                SnippetType.STATEMENT);
+    }
+
+    /**
+     * Get Retry Transaction Statement Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getRetryTransactionStatementSnippet() {
+        String snippet = "retry transaction {" + CommonUtil.LINE_SEPARATOR
+                + "\t${1}" + CommonUtil.LINE_SEPARATOR + "}";
+        return new SnippetBlock(ItemResolverConstants.RETRY_TRANSACTION, snippet, ItemResolverConstants.STATEMENT_TYPE,
                                 SnippetType.STATEMENT);
     }
 
@@ -931,6 +1026,46 @@ public class SnippetGenerator {
      */
     public static SnippetBlock getVarKeywordSnippet() {
         return new SnippetBlock(ItemResolverConstants.VAR_KEYWORD, "var ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get in Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getInKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.IN_KEYWORD, "in ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+    
+    /**
+     * Get Enum Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getEnumKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.ENUM_KEYWORD, "enum ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+    
+    /**
+     * Get Enum Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getXMLNSKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.XMLNS, "xmlns ", ItemResolverConstants.KEYWORD_TYPE,
+                                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get Rollback Keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getRollbackStatementSnippet() {
+        return new SnippetBlock(ItemResolverConstants.ROLLBACK_KEYWORD, "rollback;", ItemResolverConstants.KEYWORD_TYPE,
                                 SnippetType.KEYWORD);
     }
 
@@ -1268,7 +1403,7 @@ public class SnippetGenerator {
      * @return {@link SnippetBlock}     Generated Snippet Block
      */
     public static SnippetBlock getInitFunctionSnippet() {
-        String snippet = "public function __init(${1:any arg}) {" + CommonUtil.LINE_SEPARATOR + "\t${2}" +
+        String snippet = "public function init(${1:any arg}) {" + CommonUtil.LINE_SEPARATOR + "\t${2}" +
                 CommonUtil.LINE_SEPARATOR + "}";
         return new SnippetBlock(ItemResolverConstants.NEW_OBJECT_INITIALIZER_TYPE, snippet,
                 ItemResolverConstants.SNIPPET_TYPE, SnippetType.SNIPPET);
@@ -1332,5 +1467,75 @@ public class SnippetGenerator {
                 + CommonUtil.LINE_SEPARATOR + "\t${2}" + CommonUtil.LINE_SEPARATOR + "}";
         return new SnippetBlock(ItemResolverConstants.DETACH_FUNCTION_TYPE, snippet,
                 ItemResolverConstants.SNIPPET_TYPE, SnippetType.SNIPPET);
+    }
+
+    /**
+     * Get table keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getTableKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.TABLE, "table", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get service keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getServiceKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.SERVICE, "service", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get string keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getStringKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.STRING, "string", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get xml keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getXMLKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.XML, "xml", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get let keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getLetKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.LET, "let", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get trap keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getTrapKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.TRAP, "trap", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
+    }
+
+    /**
+     * Get trap keyword Snippet Block.
+     *
+     * @return {@link SnippetBlock}     Generated Snippet Block
+     */
+    public static SnippetBlock getErrorKeywordSnippet() {
+        return new SnippetBlock(ItemResolverConstants.ERROR, "error", ItemResolverConstants.KEYWORD_TYPE,
+                SnippetType.KEYWORD);
     }
 }

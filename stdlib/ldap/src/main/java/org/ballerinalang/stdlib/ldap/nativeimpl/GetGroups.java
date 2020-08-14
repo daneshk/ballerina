@@ -18,10 +18,11 @@
 
 package org.ballerinalang.stdlib.ldap.nativeimpl;
 
-import org.ballerinalang.jvm.BallerinaErrors;
+import org.ballerinalang.jvm.StringUtils;
 import org.ballerinalang.jvm.values.ArrayValueImpl;
 import org.ballerinalang.jvm.values.ErrorValue;
 import org.ballerinalang.jvm.values.MapValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.stdlib.ldap.CommonLdapConfiguration;
 import org.ballerinalang.stdlib.ldap.LdapConstants;
 import org.ballerinalang.stdlib.ldap.util.LdapUtils;
@@ -50,15 +51,16 @@ public class GetGroups {
 
     private static final Logger LOG = LoggerFactory.getLogger(GetGroups.class);
 
-    public static Object getGroups(MapValue<?, ?> ldapConnection, String userName) {
+    public static Object getGroups(MapValue<BString, Object> ldapConnection, BString userName) {
         try {
             LdapUtils.setServiceName((String) ldapConnection.getNativeData(LdapConstants.ENDPOINT_INSTANCE_ID));
             DirContext ldapConnectionContext = (DirContext) ldapConnection.getNativeData(
                     LdapConstants.LDAP_CONNECTION_CONTEXT);
             CommonLdapConfiguration ldapConfiguration = (CommonLdapConfiguration) ldapConnection.getNativeData(
                     LdapConstants.LDAP_CONFIGURATION);
-            String[] externalRoles = doGetGroupsListOfUser(userName, ldapConfiguration, ldapConnectionContext);
-            return new ArrayValueImpl(externalRoles);
+            String[] externalRoles = doGetGroupsListOfUser(userName.getValue(), ldapConfiguration,
+                                                           ldapConnectionContext);
+            return new ArrayValueImpl(StringUtils.fromStringArray(externalRoles));
         } catch (NamingException | ErrorValue e) {
             return LdapUtils.createError(e.getMessage());
         } finally {
@@ -77,7 +79,7 @@ public class GetGroups {
                                                     CommonLdapConfiguration ldapAuthConfig,
                                                     DirContext ldapConnectionContext) throws NamingException {
         if (userName == null) {
-            throw BallerinaErrors.createError("UserName value is null.");
+            throw LdapUtils.createError("UserName value is null.");
         }
 
         SearchControls searchControls = new SearchControls();
@@ -89,7 +91,7 @@ public class GetGroups {
         String nameInSpace = getNameInSpaceForUserName(userName, ldapAuthConfig, ldapConnectionContext);
 
         if (membershipProperty == null || membershipProperty.length() < 1) {
-            throw BallerinaErrors.createError("MembershipAttribute not set in configuration.");
+            throw LdapUtils.createError("MembershipAttribute not set in configuration.");
         }
 
         String membershipValue;

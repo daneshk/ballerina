@@ -31,6 +31,7 @@ import java.io.PrintStream;
 /**
  * Tests covering package imports.
  */
+@Test
 public class PackageImportTest {
 
     @Test
@@ -82,7 +83,7 @@ public class PackageImportTest {
         BAssertUtil.validateError(result, i++, "unknown type 'Client'", "src/file-negative2.bal", 3, 5);
         BAssertUtil.validateError(result, i++, "undefined function 'println'", "src/file-negative2.bal", 4, 5);
         BAssertUtil.validateError(result, i++, "undefined module 'io'", "src/file-negative2.bal", 4, 5);
-        BAssertUtil.validateError(result, i++, "undefined module 'io'", "src/file-negative2.bal", 5, 18);
+        BAssertUtil.validateError(result, i, "undefined module 'io'", "src/file-negative2.bal", 5, 18);
     }
 
     @Test
@@ -91,7 +92,7 @@ public class PackageImportTest {
         Assert.assertEquals(result.getErrorCount(), 2);
         int i = 0;
         BAssertUtil.validateError(result, i++, "unused import module 'ballerina/io'", 1, 1);
-        BAssertUtil.validateError(result, i++, "unused import module 'ballerina/io as otherIO'", 2, 1);
+        BAssertUtil.validateError(result, i, "unused import module 'ballerina/io as otherIO'", 2, 1);
     }
 
     @Test
@@ -109,7 +110,8 @@ public class PackageImportTest {
         Assert.assertTrue(output.contains("initializing bar\nRunning foo"), "found: " + output);
     }
 
-    @Test
+    @Test(enabled = false)
+    // New spec change has introduced to support this
     public void testUnderscoreAsPkgQualifier() {
         CompileResult result =
                 BCompileUtil.compile("test-src/statements/package/imports/invalid-package-qualifier-negative.bal");

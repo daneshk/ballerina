@@ -24,19 +24,23 @@ package org.wso2.ballerinalang.compiler.bir.codegen;
  */
 public class JvmConstants {
 
-    // javm values public API classes
+    // jvm values public API classes
     public static final String BXML_QNAME = "org/ballerinalang/jvm/values/api/BXMLQName";
 
     // jvm runtime values related classes
     public static final String MAP_VALUE = "org/ballerinalang/jvm/values/MapValue";
     public static final String MAP_VALUE_IMPL = "org/ballerinalang/jvm/values/MapValueImpl";
     public static final String STREAM_VALUE = "org/ballerinalang/jvm/values/StreamValue";
+    public static final String TABLE_VALUE = "org/ballerinalang/jvm/values/TableValue";
     public static final String ARRAY_VALUE = "org/ballerinalang/jvm/values/ArrayValue";
     public static final String OBJECT_VALUE = "org/ballerinalang/jvm/values/ObjectValue";
     public static final String ABSTRACT_OBJECT_VALUE = "org/ballerinalang/jvm/values/AbstractObjectValue";
     public static final String REF_VALUE = "org/ballerinalang/jvm/values/RefValue";
     public static final String ERROR_VALUE = "org/ballerinalang/jvm/values/ErrorValue";
+    public static final String B_ERROR = "org/ballerinalang/jvm/values/api/BError";
     public static final String STRING_VALUE = "java/lang/String";
+    public static final String B_STRING_VALUE = "org/ballerinalang/jvm/values/api/BString";
+    public static final String NON_BMP_STRING_VALUE = "org/ballerinalang/jvm/values/NonBmpStringValue";
     public static final String BMP_STRING_VALUE = "org/ballerinalang/jvm/values/BmpStringValue";
     public static final String LONG_VALUE = "java/lang/Long";
     public static final String BYTE_VALUE = "java/lang/Byte";
@@ -48,6 +52,8 @@ public class JvmConstants {
     public static final String XML_VALUE = "org/ballerinalang/jvm/values/XMLValue";
     public static final String XML_QNAME = "org/ballerinalang/jvm/values/XMLQName";
     public static final String FUTURE_VALUE = "org/ballerinalang/jvm/values/FutureValue";
+    public static final String TYPEDESC_VALUE_IMPL = "org/ballerinalang/jvm/values/TypedescValueImpl";
+    public static final String TYPEDESC_VALUE_IMPL_CLOSURES = "closures";
     public static final String TYPEDESC_VALUE = "org/ballerinalang/jvm/values/TypedescValue";
     public static final String HANDLE_VALUE = "org/ballerinalang/jvm/values/HandleValue";
     public static final String LOCK_VALUE = "org/ballerinalang/jvm/BLock";
@@ -55,9 +61,20 @@ public class JvmConstants {
     public static final String FUNCTION_POINTER = "org/ballerinalang/jvm/values/FPValue";
     public static final String ARRAY_VALUE_IMPL = "org/ballerinalang/jvm/values/ArrayValueImpl";
     public static final String TUPLE_VALUE_IMPL = "org/ballerinalang/jvm/values/TupleValueImpl";
+    public static final String TABLE_VALUE_IMPL = "org/ballerinalang/jvm/values/TableValueImpl";
     public static final String SIMPLE_VALUE = "org/ballerinalang/jvm/values/SimpleValue";
 
     public static final String BHANDLE = "org/ballerinalang/jvm/values/api/BHandle";
+
+    public static final String BINITIAL_VALUE_ENTRY = "org/ballerinalang/jvm/values/api/BInitialValueEntry";
+    public static final String MAPPING_INITIAL_VALUE_ENTRY = "org/ballerinalang/jvm/values/MappingInitialValueEntry";
+    public static final String MAPPING_INITIAL_KEY_VALUE_ENTRY =
+            "org/ballerinalang/jvm/values/MappingInitialValueEntry$KeyValueEntry";
+    public static final String MAPPING_INITIAL_SPREAD_FIELD_ENTRY =
+            "org/ballerinalang/jvm/values/MappingInitialValueEntry$SpreadFieldEntry";
+    public static final String LIST_INITIAL_VALUE_ENTRY = "org/ballerinalang/jvm/values/ListInitialValueEntry";
+    public static final String LIST_INITIAL_EXPRESSION_ENTRY =
+            "org/ballerinalang/jvm/values/ListInitialValueEntry$ExpressionEntry";
 
     // types related classes
     public static final String BTYPE = "org/ballerinalang/jvm/types/BType";
@@ -66,7 +83,9 @@ public class JvmConstants {
     public static final String MAP_TYPE = "org/ballerinalang/jvm/types/BMapType";
     public static final String XML_TYPE = "org/ballerinalang/jvm/types/BXMLType";
     public static final String STREAM_TYPE = "org/ballerinalang/jvm/types/BStreamType";
+    public static final String TABLE_TYPE = "org/ballerinalang/jvm/types/BTableType";
     public static final String UNION_TYPE = "org/ballerinalang/jvm/types/BUnionType";
+    public static final String INTERSECTION_TYPE = "org/ballerinalang/jvm/types/BIntersectionType";
     public static final String RECORD_TYPE = "org/ballerinalang/jvm/types/BRecordType";
     public static final String OBJECT_TYPE = "org/ballerinalang/jvm/types/BObjectType";
     public static final String SERVICE_TYPE = "org/ballerinalang/jvm/types/BServiceType";
@@ -79,12 +98,15 @@ public class JvmConstants {
     public static final String FINITE_TYPE = "org/ballerinalang/jvm/types/BFiniteType";
     public static final String FUTURE_TYPE = "org/ballerinalang/jvm/types/BFutureType";
     public static final String PACKAGE_TYPE = "org/ballerinalang/jvm/types/BPackage";
+    public static final String TYPE_ID_SET = "org/ballerinalang/jvm/types/BTypeIdSet";
+    public static final String TYPE_ID = "org/ballerinalang/jvm/types/BTypeIdSet$TypeId";
 
     // other jvm-specific classes
     public static final String TYPE_CHECKER = "org/ballerinalang/jvm/TypeChecker";
     public static final String SCHEDULER = "org/ballerinalang/jvm/scheduling/Scheduler";
     public static final String JSON_UTILS = "org/ballerinalang/jvm/JSONUtils";
     public static final String STRAND = "org/ballerinalang/jvm/scheduling/Strand";
+    public static final String STRAND_METADATA = "org/ballerinalang/jvm/scheduling/StrandMetadata";
     public static final String TYPE_CONVERTER = "org/ballerinalang/jvm/TypeConverter";
     public static final String LIST_UTILS = "org/ballerinalang/jvm/Lists";
     public static final String STRAND_STATE = "org/ballerinalang/jvm/scheduling/State";
@@ -95,6 +117,7 @@ public class JvmConstants {
     public static final String CHANNEL_DETAILS = "org/ballerinalang/jvm/values/ChannelDetails";
     public static final String WORKER_UTILS = "org/ballerinalang/jvm/scheduling/WorkerUtils";
     public static final String MAP_UTILS = "org/ballerinalang/jvm/MapUtils";
+    public static final String TABLE_UTILS = "org/ballerinalang/jvm/TableUtils";
     public static final String STRING_UTILS = "org/ballerinalang/jvm/StringUtils";
     public static final String BAL_ERRORS = "org/ballerinalang/jvm/BallerinaErrors";
     public static final String RUNTIME_UTILS = "org/ballerinalang/jvm/util/RuntimeUtils";
@@ -128,6 +151,7 @@ public class JvmConstants {
     public static final String COLLECTION = "java/util/Collection";
     public static final String BIG_DECIMAL = "java/math/BigDecimal";
     public static final String NUMBER = "java/lang/Number";
+    public static final String HASH_MAP = "java/util/HashMap";
 
     // service objects, annotation processing related classes
     public static final String ANNOTATION_UTILS = "org/ballerinalang/jvm/AnnotationUtils";
@@ -142,21 +166,28 @@ public class JvmConstants {
     public static final String PANIC_FIELD = "panic";
     public static final String PRINT_STACK_TRACE_METHOD = "printStackTrace";
     public static final String SET_DETAIL_TYPE_METHOD = "setDetailType";
+    public static final String SET_TYPEID_SET_METHOD = "setTypeIdSet";
     public static final String ERROR_REASON_METHOD_TOO_LARGE = "MethodTooLarge";
     public static final String ERROR_REASON_CLASS_TOO_LARGE = "ClassTooLarge";
     public static final String TRAP_ERROR_METHOD = "trapError";
+    public static final String BLOCKED_ON_EXTERN_FIELD = "blockedOnExtern";
+    public static final String IS_BLOCKED_ON_EXTERN_FIELD = "isBlockedOnExtern";
+
+    // Immutable type related constants.
+    public static final String SET_IMMUTABLE_TYPE_METHOD = "setImmutableType";
 
     // exception classes
     public static final String BLANG_RUNTIME_EXCEPTION = "org/ballerinalang/jvm/util/exceptions/BLangRuntimeException";
     public static final String THROWABLE = "java/lang/Throwable";
     public static final String STACK_OVERFLOW_ERROR = "java/lang/StackOverflowError";
-    public static final String HANDLE_THROWABLE_METHOD = "handleRuntimeErrors";
-    public static final String HANDLE_STOP_PANIC_METHOD = "silentlyLogBadSad";
+    public static final String HANDLE_THROWABLE_METHOD = "handleRuntimeErrorsAndExit";
     public static final String HANDLE_RETURNED_ERROR_METHOD = "handleRuntimeReturnValues";
     public static final String UNSUPPORTED_OPERATION_EXCEPTION = "java/lang/UnsupportedOperationException";
+    public static final String HANDLE_STOP_PANIC_METHOD = "handleRuntimeErrors";
 
     // code generation related constants.
     public static final String MODULE_INIT_CLASS_NAME = "___init";
+    public static final String CONSTRUCTOR_INIT_METHOD = "<init>";
     public static final String CURRENT_MODULE_INIT = "$currentModuleInit";
     public static final String MODULE_INIT = "$moduleInit";
     public static final String MODULE_START = "$moduleStart";
@@ -166,24 +197,55 @@ public class JvmConstants {
     public static final String UNIX_PATH_SEPERATOR = "/";
     public static final String JAVA_PACKAGE_SEPERATOR = "/";
     public static final String FILE_NAME_PERIOD_SEPERATOR = "$$$";
+    public static final String VALUE_CLASS_PREFIX = "$value$";
+    public static final String TYPEDESC_CLASS_PREFIX = "$typedesc$";
     public static final String BALLERINA = "ballerina";
     public static final String BUILT_IN_PACKAGE_NAME = "lang.annotations";
+    public static final String MODULE_START_ATTEMPTED = "$moduleStartAttempted";
+    public static final String MODULE_STARTED = "$moduleStarted";
+    public static final String START_FUNCTION_SUFFIX = "<start>";
+    public static final String STOP_FUNCTION_SUFFIX = "<stop>";
+    public static final String DESUGARED_BB_ID_NAME = "desugaredBB";
+    public static final String WRAPPER_GEN_BB_ID_NAME = "wrapperGen";
+    public static final String JVM_INIT_METHOD = "<init>";
+    public static final String JVM_TO_STRING_METHOD = "toString";
+    public static final String JVM_TO_UNSIGNED_INT_METHOD = "toUnsignedInt";
+    public static final String GET_VALUE_METHOD = "getValue";
+    public static final String ANY_TO_BYTE_METHOD = "anyToByte";
+    public static final String ANY_TO_INT_METHOD = "anyToInt";
+    public static final String DECIMAL_VALUE_OF_J_METHOD = "valueOfJ";
+    public static final String VALUE_OF_METHOD = "valueOf";
+    public static final String POPULATE_INITIAL_VALUES_METHOD = "populateInitialValues";
+    public static final String CREATE_TYPES_METHOD = "$createTypes";
+    public static final String CREATE_TYPE_INSTANCES_METHOD = "$createTypeInstances";
+    public static final String GLOBAL_LOCK_NAME = "lock";
+    public static final String SERVICE_EP_AVAILABLE = "serviceEPAvailable";
+    public static final String LOCK_STORE_VAR_NAME = "LOCK_STORE";
 
     // scheduler related constants
     public static final String SCHEDULE_FUNCTION_METHOD = "scheduleFunction";
     public static final String SCHEDULE_LOCAL_METHOD = "scheduleLocal";
     public static final String SCHEDULER_START_METHOD = "start";
+    public static final String CREATE_RECORD_VALUE = "createRecordValue";
+    public static final String CREATE_OBJECT_VALUE = "createObjectValue";
 
     // strand data related constants
     public static final String STRAND_ANNOTATION = "strand";
     public static final String STRAND_THREAD = "thread";
-    public static final String STRAND_DATA_NAME = "name";
+    public static final String STRAND_NAME = "name";
+    public static final String STRAND_POLICY_NAME = "policy";
     public static final String STRAND_VALUE_ANY = "any";
+    public static final String STRAND_METADATA_VAR_PREFIX = "$strand_metadata$";
     public static final String DEFAULT_STRAND_DISPATCHER = "DEFAULT";
 
     // observability related constants
     public static final String OBSERVER_CONTEXT = "org/ballerinalang/jvm/observability/ObserverContext";
     public static final String OBSERVE_UTILS = "org/ballerinalang/jvm/observability/ObserveUtils";
+    public static final String START_RESOURCE_OBSERVATION_METHOD = "startResourceObservation";
+    public static final String START_CALLABLE_OBSERVATION_METHOD = "startCallableObservation";
+    public static final String REPORT_ERROR_METHOD = "reportError";
+    public static final String STOP_OBSERVATION_METHOD = "stopObservation";
+    public static final String OBSERVABLE_ANNOTATION = "ballerina/observe/Observable";
 
     // visibility flags
     public static final int BAL_PUBLIC = 1;
@@ -203,5 +265,4 @@ public class JvmConstants {
     public static final String METHOD_TOO_LARGE = "MethodTooLarge";
     public static final String CLASS_TOO_LARGE = "ClassTooLarge";
 
-    public static final String GLOBAL_LOCK_NAME = "global";
 }

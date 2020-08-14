@@ -22,16 +22,20 @@ import org.ballerinalang.jvm.observability.ObserveUtils;
 import org.ballerinalang.jvm.observability.ObserverContext;
 import org.ballerinalang.jvm.scheduling.Scheduler;
 import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.scheduling.StrandMetadata;
 import org.ballerinalang.jvm.types.AttachedFunction;
 import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.BUnionType;
 import org.ballerinalang.jvm.types.TypeFlags;
 import org.ballerinalang.jvm.util.exceptions.BallerinaException;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ArrayValueImpl;
 import org.ballerinalang.jvm.values.ErrorValue;
 import org.ballerinalang.jvm.values.FutureValue;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.api.BString;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -49,8 +53,11 @@ import java.util.function.Function;
 public class Executor {
 
     private static final BUnionType OPTIONAL_ERROR_TYPE = new BUnionType(
-            new BType[] { BTypes.typeError, BTypes.typeNull },
+            new BType[]{BTypes.typeError, BTypes.typeNull},
             TypeFlags.asMask(TypeFlags.NILABLE, TypeFlags.PURETYPE));
+
+    private Executor() {
+    }
 
     /**
      * This method will execute Ballerina resource in non-blocking manner. It will use Ballerina worker-pool for the
@@ -59,63 +66,73 @@ public class Executor {
      * @param scheduler    available scheduler.
      * @param service      to be executed.
      * @param resourceName to be executed.
+     * @param strandName   name for newly creating strand which is used to execute the function pointer.
+     * @param metaData     meta data of new strand.
      * @param callback     to be executed when execution completes.
      * @param properties   to be passed to context.
      * @param args         required for the resource.
      */
-    public static void submit(Scheduler scheduler, ObjectValue service, String resourceName,
-                              CallableUnitCallback callback, Map<String, Object> properties, Object... args) {
+    public static void submit(Scheduler scheduler, ObjectValue service, String resourceName, String strandName,
+                              StrandMetadata metaData, CallableUnitCallback callback,
+                              Map<String, Object> properties, Object... args) {
 
         Function<Object[], Object> func = objects -> {
             Strand strand = (Strand) objects[0];
-            if (ObserveUtils.isObservabilityEnabled() && properties != null &&
-                    properties.containsKey(ObservabilityConstants.KEY_OBSERVER_CONTEXT)) {
-                strand.observerContext =
-                        (ObserverContext) properties.remove(ObservabilityConstants.KEY_OBSERVER_CONTEXT);
+            if (ObserveUtils.isObservabilityEnabled() && properties != null && properties.containsKey(
+                    ObservabilityConstants.KEY_OBSERVER_CONTEXT)) {
+                strand.observerContext = (ObserverContext) properties.remove(
+                        ObservabilityConstants.KEY_OBSERVER_CONTEXT);
             }
             return service.call(strand, resourceName, args);
         };
-        scheduler.schedule(new Object[1], func, null, callback, properties, OPTIONAL_ERROR_TYPE);
+        scheduler.schedule(new Object[1], func, null, callback, properties, OPTIONAL_ERROR_TYPE, strandName, metaData);
     }
 
     /**
      * Execution API to execute just a function.
      *
-     * @param strand   current strand
-     * @param service  to be executed
-     * @param resource to be executed
-     * @param args     to be passed to invokable unit
+     * @param strand     current strand
+     * @param service    to be executed
+     * @param resource   to be executed
+     * @param strandName name for newly creating strand which is used to execute the function pointer.
+     * @param metaData   meta data of new strand.
+     * @param args       to be passed to invokable unit
      * @return results
      */
     public static Object executeFunction(Strand strand, ObjectValue service, AttachedFunction resource,
-                                         Object... args) {
+                                         String strandName, StrandMetadata metaData, Object... args) {
         int requiredArgNo = resource.type.paramTypes.length;
         int providedArgNo = (args.length / 2); // due to additional boolean args being added for each arg
         if (requiredArgNo != providedArgNo) {
-            throw new RuntimeException("Wrong number of arguments. Required: " + requiredArgNo + " , found: " +
-                                               providedArgNo + ".");
+            throw new RuntimeException(
+                    "Wrong number of arguments. Required: " + requiredArgNo + " , found: " + providedArgNo + ".");
         }
 
-        return service.call(new Strand(strand.scheduler), resource.getName(), args);
+        return service.call(new Strand(strandName, metaData, strand.scheduler, null, null), resource.getName(), args);
     }
 
     /**
      * This method will invoke Ballerina function in blocking manner.
      *
      * @param scheduler   current scheduler
+     * @param strandName  name for newly creating strand which is used to execute the function pointer.
+     * @param metaData    meta data of new strand.
      * @param classLoader normal classLoader
      * @param orgName     org which the package belongs to
      * @param packageName package which the class belongs to
+     * @param version     version which the class belongs to
      * @param className   which the function resides/ or file name
      * @param methodName  to be invokable unit
      * @param paramValues to be passed to invokable unit
      * @return return values
      */
-    public static Object executeFunction(Scheduler scheduler, ClassLoader classLoader, final String orgName,
-                                         String packageName, String className, String methodName,
+    public static Object executeFunction(Scheduler scheduler, String strandName, StrandMetadata metaData,
+                                         ClassLoader classLoader, final String orgName,
+                                         String packageName, String version, String className, String methodName,
                                          Object... paramValues) {
         try {
-            Class<?> clazz = classLoader.loadClass(orgName + "." + packageName + "." + className);
+            Class<?> clazz = classLoader.loadClass(
+                    orgName + "." + packageName + "." + version.replace(".", "_") + "." + className);
             int paramCount = paramValues.length * 2 + 1;
             Class<?>[] jvmParamTypes = new Class[paramCount];
             Object[] jvmArgs = new Object[paramCount];
@@ -146,7 +163,7 @@ public class Executor {
                 public void notifyFailure(ErrorValue error) {
                     completeFunction.countDown();
                 }
-            }, new HashMap<>(), BTypes.typeNull);
+            }, new HashMap<>(), BTypes.typeNull, strandName, metaData);
             completeFunction.await();
             return futureValue.result;
         } catch (NoSuchMethodException | ClassNotFoundException | InterruptedException e) {
@@ -161,18 +178,23 @@ public class Executor {
             return ObjectValue.class;
         } else if (paramValue instanceof Boolean) {
             return boolean.class;
+        } else if (paramValue instanceof BString) {
+            return BString.class;
         } else if (paramValue instanceof String) {
             return String.class;
         } else if (paramValue instanceof Integer) {
             return int.class;
+        } else if (paramValue instanceof Long) {
+            return long.class;
+        } else if (paramValue instanceof Double) {
+            return double.class;
         } else if (paramValue instanceof Float) {
             return double.class;
+        } else if (paramValue instanceof ArrayValueImpl) {
+            return ArrayValue.class;
         } else {
             // This is done temporarily, until blocks are added here for all possible cases.
             throw new RuntimeException("unknown param type: " + paramValue.getClass());
         }
-    }
-
-    private Executor() {
     }
 }

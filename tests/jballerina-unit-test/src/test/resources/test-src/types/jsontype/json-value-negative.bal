@@ -2,17 +2,17 @@ type DummyType record {
     int id;
 };
 
-//function testJsonArrayWithUnsupportedtypes() returns (json) {
-//    table<DummyType> dt = table{};
-//    json j = ["a", "b", "c", dt];
-//    return j;
-//}
-//
-//function testJsonInitWithUnsupportedtypes() returns (json) {
-//    table<DummyType> dt = table{};
-//    json j = { "name": "Supun", "value": dt };
-//    return j;
-//}
+function testJsonArrayWithUnsupportedtypes() returns (json) {
+    table<DummyType> dt = table [];
+    json j = ["a", "b", "c", dt];
+    return j;
+}
+
+function testJsonInitWithUnsupportedtypes() returns (json) {
+    table<DummyType> dt = table [];
+    json j = { "name": "Supun", "value": dt };
+    return j;
+}
 
 public function testCloseRecordToMapJsonAssigment() returns [map<json>, map<json>] {
     AnotherPerson ap = {};
@@ -45,7 +45,7 @@ type PersonWithTypedesc record {
 type Obj object {
     int i;
 
-    function __init() {
+    function init() {
         self.i = 0;
     }
 };

@@ -26,6 +26,7 @@ import org.ballerinalang.jvm.util.exceptions.BallerinaException;
 import org.ballerinalang.jvm.values.ArrayValue;
 import org.ballerinalang.jvm.values.ArrayValueImpl;
 import org.ballerinalang.jvm.values.MapValueImpl;
+import org.ballerinalang.jvm.values.api.BString;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -39,7 +40,7 @@ import java.util.Deque;
 
 /**
  * This class represents a JSON parser.
- * 
+ *
  * @since 0.995.0
  */
 @SuppressWarnings("unchecked")
@@ -54,26 +55,28 @@ public class JSONParser {
 
     /**
      * Parses the contents in the given {@link InputStream} and returns a json.
-     * 
+     *
      * @param in input stream which contains the JSON content
      * @return JSON structure
      * @throws BallerinaException for any parsing error
      */
     public static Object parse(InputStream in) throws BallerinaException {
-        return parse(in, Charset.defaultCharset().name());
+        Object jsonObj = parse(in, Charset.defaultCharset().name());
+        return changeForBString(jsonObj);
     }
 
     /**
      * Parses the contents in the given {@link InputStream} and returns a json.
-     * 
-     * @param in input stream which contains the JSON content
+     *
+     * @param in          input stream which contains the JSON content
      * @param charsetName the character set name of the input stream
      * @return JSON structure
      * @throws BallerinaException for any parsing error
      */
     public static Object parse(InputStream in, String charsetName) throws BallerinaException {
         try {
-            return parse(new InputStreamReader(new BufferedInputStream(in), charsetName));
+            Object jsonObj = parse(new InputStreamReader(new BufferedInputStream(in), charsetName));
+            return changeForBString(jsonObj);
         } catch (IOException e) {
             throw BallerinaErrors.createError("Error in parsing JSON data: " + e.getMessage());
         }
@@ -81,7 +84,7 @@ public class JSONParser {
 
     /**
      * Parses the contents in the given string and returns a json.
-     * 
+     *
      * @param jsonStr the string which contains the JSON content
      * @return JSON structure
      * @throws BallerinaException for any parsing error
@@ -90,9 +93,16 @@ public class JSONParser {
         return parse(new StringReader(jsonStr));
     }
 
+    private static Object changeForBString(Object jsonObj) {
+        if (jsonObj instanceof String) {
+            return StringUtils.fromString((String) jsonObj);
+        }
+        return jsonObj;
+    }
+
     /**
      * Parses the contents in the given {@link Reader} and returns a json.
-     * 
+     *
      * @param reader reader which contains the JSON content
      * @return JSON structure
      * @throws BallerinaException for any parsing error
@@ -262,11 +272,12 @@ public class JSONParser {
 
             Object parentNode = this.nodesStack.pop();
             if (TypeChecker.getType(parentNode).getTag() == TypeTags.MAP_TAG) {
-                ((MapValueImpl<String, Object>) parentNode).put(fieldNames.pop(), currentJsonNode);
+                ((MapValueImpl<BString, Object>) parentNode).put(StringUtils.fromString(fieldNames.pop()),
+                                                                 currentJsonNode);
                 currentJsonNode = parentNode;
                 return FIELD_END_STATE;
             }
-            ((ArrayValue) parentNode).append(currentJsonNode);
+            ((ArrayValue) parentNode).append(changeForBString(currentJsonNode));
             currentJsonNode = parentNode;
             return ARRAY_ELEMENT_END_STATE;
         }
@@ -275,7 +286,7 @@ public class JSONParser {
             if (currentJsonNode != null) {
                 this.nodesStack.push(currentJsonNode);
             }
-            currentJsonNode = new MapValueImpl<String, Object>(new BMapType(BTypes.typeJSON));
+            currentJsonNode = new MapValueImpl<>(new BMapType(BTypes.typeJSON));
             return FIRST_FIELD_READY_STATE;
         }
 
@@ -624,7 +635,8 @@ public class JSONParser {
                     ch = buff[i];
                     sm.processLocation(ch);
                     if (ch == sm.currentQuoteChar) {
-                        ((MapValueImpl<String, Object>) sm.currentJsonNode).put(sm.fieldNames.pop(), sm.value());
+                        ((MapValueImpl<BString, Object>) sm.currentJsonNode).put(
+                                StringUtils.fromString(sm.fieldNames.pop()), StringUtils.fromString(sm.value()));
                         state = FIELD_END_STATE;
                     } else if (ch == REV_SOL) {
                         state = STRING_FIELD_ESC_CHAR_PROCESSING_STATE;
@@ -656,7 +668,7 @@ public class JSONParser {
                     ch = buff[i];
                     sm.processLocation(ch);
                     if (ch == sm.currentQuoteChar) {
-                        ((ArrayValue) sm.currentJsonNode).append(sm.value());
+                        ((ArrayValue) sm.currentJsonNode).append(changeForBString(sm.value()));
                         state = ARRAY_ELEMENT_END_STATE;
                     } else if (ch == REV_SOL) {
                         state = STRING_AE_ESC_CHAR_PROCESSING_STATE;
@@ -768,7 +780,7 @@ public class JSONParser {
                     ch = buff[i];
                     sm.processLocation(ch);
                     if (ch == sm.currentQuoteChar) {
-                        sm.currentJsonNode = sm.value();
+                        sm.currentJsonNode = changeForBString(sm.value());
                         state = DOC_END_STATE;
                     } else if (ch == REV_SOL) {
                         state = STRING_VAL_ESC_CHAR_PROCESSING_STATE;
@@ -798,14 +810,14 @@ public class JSONParser {
                     double doubleValue = Double.parseDouble(str);
                     switch (type) {
                         case ARRAY_ELEMENT:
-                            ((ArrayValue) this.currentJsonNode).append(new Double(doubleValue));
+                            ((ArrayValue) this.currentJsonNode).append(doubleValue);
                             break;
                         case FIELD:
-                            ((MapValueImpl<String, Object>) this.currentJsonNode).put(this.fieldNames.pop(),
-                                    new Double(doubleValue));
+                            ((MapValueImpl<BString, Object>) this.currentJsonNode).put(
+                                    StringUtils.fromString(this.fieldNames.pop()), doubleValue);
                             break;
                         case VALUE:
-                            currentJsonNode = new Double(doubleValue);
+                            currentJsonNode = doubleValue;
                             break;
                         default:
                             break;
@@ -821,8 +833,8 @@ public class JSONParser {
                             ((ArrayValue) this.currentJsonNode).append(Boolean.TRUE);
                             break;
                         case FIELD:
-                            ((MapValueImpl<String, Object>) this.currentJsonNode).put(this.fieldNames.pop(),
-                                    Boolean.TRUE);
+                            ((MapValueImpl<BString, Object>) this.currentJsonNode).put(
+                                    StringUtils.fromString(this.fieldNames.pop()), Boolean.TRUE);
                             break;
                         case VALUE:
                             currentJsonNode = Boolean.TRUE;
@@ -836,8 +848,8 @@ public class JSONParser {
                             ((ArrayValue) this.currentJsonNode).append(Boolean.FALSE);
                             break;
                         case FIELD:
-                            ((MapValueImpl<String, Object>) this.currentJsonNode).put(this.fieldNames.pop(),
-                                    Boolean.FALSE);
+                            ((MapValueImpl<BString, Object>) this.currentJsonNode).put(
+                                    StringUtils.fromString(this.fieldNames.pop()), Boolean.FALSE);
                             break;
                         case VALUE:
                             currentJsonNode = Boolean.FALSE;
@@ -851,7 +863,8 @@ public class JSONParser {
                             ((ArrayValue) this.currentJsonNode).append(null);
                             break;
                         case FIELD:
-                            ((MapValueImpl<String, Object>) this.currentJsonNode).put(this.fieldNames.pop(), null);
+                            ((MapValueImpl<BString, Object>) this.currentJsonNode).put(
+                                    StringUtils.fromString(this.fieldNames.pop()), null);
                             break;
                         case VALUE:
                             currentJsonNode = null;
@@ -864,14 +877,14 @@ public class JSONParser {
                         long longValue = Long.parseLong(str);
                         switch (type) {
                             case ARRAY_ELEMENT:
-                                ((ArrayValue) this.currentJsonNode).append(new Long(longValue));
+                                ((ArrayValue) this.currentJsonNode).append(longValue);
                                 break;
                             case FIELD:
-                                ((MapValueImpl<String, Object>) this.currentJsonNode).put(this.fieldNames.pop(),
-                                        new Long(longValue));
+                                ((MapValueImpl<BString, Object>) this.currentJsonNode).put(
+                                        StringUtils.fromString(this.fieldNames.pop()), longValue);
                                 break;
                             case VALUE:
-                                currentJsonNode = new Long(longValue);
+                                currentJsonNode = longValue;
                                 break;
                             default:
                                 break;

@@ -18,7 +18,6 @@
 package org.wso2.ballerinalang.compiler.bir.codegen.interop;
 
 import org.ballerinalang.compiler.BLangCompilerException;
-import org.wso2.ballerinalang.compiler.bir.codegen.Nilable;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotationArrayValue;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotationAttachment;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotationLiteralValue;
@@ -30,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.wso2.ballerinalang.compiler.bir.codegen.JvmConstants.JVM_INIT_METHOD;
 import static org.wso2.ballerinalang.compiler.bir.codegen.interop.JInterop.CONSTRUCTOR_ANNOT_TAG;
 import static org.wso2.ballerinalang.compiler.bir.codegen.interop.JInterop.INTEROP_ANNOT_MODULE;
 import static org.wso2.ballerinalang.compiler.bir.codegen.interop.JInterop.INTEROP_ANNOT_ORG;
@@ -53,8 +53,7 @@ public class AnnotationProc {
     public static final String PARAM_TYPES_FIELD_NAME = "paramTypes";
     public static final String DIMENSIONS_FIELD_NAME = "dimensions";
 
-    static @Nilable
-    InteropValidationRequest getInteropAnnotValue(BIRFunction birFunc) {
+    static InteropValidationRequest getInteropAnnotValue(BIRFunction birFunc) {
 
         BIRAnnotationAttachment annotAttach = getInteropAnnotAttachment(birFunc);
         if (annotAttach == null) {
@@ -65,8 +64,7 @@ public class AnnotationProc {
         return createJInteropValidationRequest(annotTagRef, annotAttach, birFunc);
     }
 
-    private static @Nilable
-    BIRAnnotationAttachment getInteropAnnotAttachment(BIRFunction birFunc) {
+    private static BIRAnnotationAttachment getInteropAnnotAttachment(BIRFunction birFunc) {
 
         for (BIRAnnotationAttachment annotationAttachment : birFunc.annotAttachments) {
             if (isInteropAnnotAttachment(annotationAttachment)) {
@@ -112,6 +110,9 @@ public class AnnotationProc {
         if (!(paramTypeConstraints == null)) {
             valRequest.paramTypeConstraints = paramTypeConstraints;
         }
+        if (birFunc.receiver != null) {
+            valRequest.receiverType = birFunc.receiver.type;
+        }
         return valRequest;
     }
 
@@ -125,12 +126,11 @@ public class AnnotationProc {
                 birFunc.type, getFieldMethodFromAnnotTag(annotTagRef));
     }
 
-    private static @Nilable
-    List<JType> buildParamTypeConstraints(@Nilable BIRAnnotationValue annotValue) {
+    private static List<JType> buildParamTypeConstraints(BIRAnnotationValue annotValue) {
 
         if (annotValue instanceof BIRAnnotationArrayValue) {
-            @Nilable BIRAnnotationValue[] annotArrayElements = ((BIRAnnotationArrayValue) annotValue).annotArrayValue;
-            @Nilable List<JType> constraints = new ArrayList<>();
+            BIRAnnotationValue[] annotArrayElements = ((BIRAnnotationArrayValue) annotValue).annotArrayValue;
+            List<JType> constraints = new ArrayList<>();
             for (BIRAnnotationValue annotArrayElement : annotArrayElements) {
                 JType jType;
                 if (annotArrayElement instanceof BIRAnnotationLiteralValue) {
@@ -154,7 +154,7 @@ public class AnnotationProc {
         return null;
     }
 
-    private static Object getLiteralValueFromAnnotValue(@Nilable BIRAnnotationValue annotValue) {
+    private static Object getLiteralValueFromAnnotValue(BIRAnnotationValue annotValue) {
 
         if (annotValue == null) {
             return null;
@@ -167,21 +167,21 @@ public class AnnotationProc {
     }
 
     private static String getJMethodNameFromAnnot(String annotTagRef,
-                                                  @Nilable BIRAnnotationValue jNameValueEntry,
+                                                  BIRAnnotationValue jNameValueEntry,
                                                   BIRFunction birFunc) {
 
         if (annotTagRef.equals(CONSTRUCTOR_ANNOT_TAG)) {
-            return "<init>";
+            return JVM_INIT_METHOD;
         } else {
-            @Nilable String methodName = (String) getLiteralValueFromAnnotValue(jNameValueEntry);
+            String methodName = (String) getLiteralValueFromAnnotValue(jNameValueEntry);
             return methodName != null ? methodName : birFunc.name.value;
         }
     }
 
-    private static String getJFieldNameFromAnnot(@Nilable BIRAnnotationValue jNameValueEntry,
+    private static String getJFieldNameFromAnnot(BIRAnnotationValue jNameValueEntry,
                                                  BIRFunction birFunc) {
 
-        @Nilable String fieldName = (String) getLiteralValueFromAnnotValue(jNameValueEntry);
+        String fieldName = (String) getLiteralValueFromAnnotValue(jNameValueEntry);
         return fieldName != null ? fieldName : birFunc.name.value;
     }
 }

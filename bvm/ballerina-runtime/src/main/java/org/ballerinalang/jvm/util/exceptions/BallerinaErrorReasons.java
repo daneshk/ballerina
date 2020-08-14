@@ -21,6 +21,7 @@ import static org.ballerinalang.jvm.util.BLangConstants.ARRAY_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.FUTURE_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.MAP_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.STRING_LANG_LIB;
+import static org.ballerinalang.jvm.util.BLangConstants.TABLE_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.TYPEDESC_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.VALUE_LANG_LIB;
 import static org.ballerinalang.jvm.util.BLangConstants.XML_LANG_LIB;
@@ -54,6 +55,7 @@ public class BallerinaErrorReasons {
     public static final String BALLERINA_PREFIXED_STAMP_ERROR = BALLERINA_PREFIX.concat("StampError");
     public static final String BALLERINA_PREFIXED_CONVERSION_ERROR = BALLERINA_PREFIX.concat("ConversionError");
     public static final String CONCURRENT_MODIFICATION_ERROR = BALLERINA_PREFIX.concat("ConcurrentModification");
+    public static final String ITERATOR_MUTABILITY_ERROR = BALLERINA_PREFIX.concat("IteratorMutabilityError");
 
     public static final String NUMBER_PARSING_ERROR_IDENTIFIER = "NumberParsingError";
     public static final String BOOLEAN_PARSING_ERROR_IDENTIFIER = "BooleanParsingError";
@@ -70,14 +72,24 @@ public class BallerinaErrorReasons {
 
     public static final String CONSTRUCT_FROM_CONVERSION_ERROR = getModulePrefixedReason(TYPEDESC_LANG_LIB,
                                                                                          "ConversionError");
+    public static final String VALUE_LANG_LIB_CONVERSION_ERROR = getModulePrefixedReason(VALUE_LANG_LIB,
+                                                                                         "ConversionError");
     public static final String CONSTRUCT_FROM_CYCLIC_VALUE_REFERENCE_ERROR =
             getModulePrefixedReason(TYPEDESC_LANG_LIB, "CyclicValueReferenceError");
+    public static final String VALUE_LANG_LIB_CYCLIC_VALUE_REFERENCE_ERROR =
+            getModulePrefixedReason(VALUE_LANG_LIB, "CyclicValueReferenceError");
     public static final String MERGE_JSON_ERROR = getModulePrefixedReason(VALUE_LANG_LIB, "MergeJsonError");
     public static final String STRING_OPERATION_ERROR = getModulePrefixedReason(STRING_LANG_LIB,
                                                                                 "StringOperationError");
     public static final String XML_OPERATION_ERROR = getModulePrefixedReason(XML_LANG_LIB, "XMLOperationError");
     public static final String MAP_KEY_NOT_FOUND_ERROR = getModulePrefixedReason(MAP_LANG_LIB,
                                                                                  KEY_NOT_FOUND_ERROR_IDENTIFIER);
+    public static final String TABLE_KEY_NOT_FOUND_ERROR = getModulePrefixedReason(TABLE_LANG_LIB,
+            KEY_NOT_FOUND_ERROR_IDENTIFIER);
+    public static final String TABLE_KEY_CYCLIC_VALUE_REFERENCE_ERROR =
+            getModulePrefixedReason(TABLE_LANG_LIB, "CyclicValueReferenceError");
+    public static final String TABLE_HAS_A_VALUE_FOR_KEY_ERROR = getModulePrefixedReason(TABLE_LANG_LIB,
+            "KeyConstraintViolation");
     public static final String ILLEGAL_LIST_INSERTION_ERROR = getModulePrefixedReason(ARRAY_LANG_LIB,
                                                                                       "IllegalListInsertion");
     public static final String FUTURE_CANCELLED = getModulePrefixedReason(FUTURE_LANG_LIB, "FutureAlreadyCancelled");

@@ -164,7 +164,7 @@ function getLargeMap() returns map<int> {
 type Person object {
     string name;
 
-    function __init(string n) {
+    function init(string n) {
         self.name = n;
     }
 
@@ -262,4 +262,39 @@ function assertSameRef(any expected, any actual) {
     string msg = "expected [" + expected.toString() + "] of type [" + expT.toString()
                         + "], but found [" + actual.toString() + "] of type [" + actT.toString() + "]";
     panic error("{AssertionError}", message = msg);
+}
+
+
+function testAsyncFpArgsWithMaps() returns [int, map<int>] {
+    map<int> marks = {a: 12, b: 34, c: 76};
+    map<int> newMarks = marks.map(function (int entry) returns int {
+        future<int> f1 = start getRandomNumber(entry);
+        return wait f1;
+    });
+
+    map<int> passMarks = newMarks.filter(function (int entry) returns boolean {
+        future<int> f1 = start getRandomNumber(entry);
+        int n = wait f1;
+        return n > 35;
+    });
+
+    int total = 0;
+    passMarks.forEach(function (int entry) {
+        future<int> f1 = start getRandomNumber(entry);
+        int n = wait f1;
+        total = total + n;
+
+    });
+
+    int finalResult = passMarks.reduce(function (int sum, int entry) returns int {
+        future<int> f1 = start getRandomNumber(entry);
+        int n = wait f1;
+        return sum + n;
+
+    }, 0);
+    return [finalResult, passMarks];
+}
+
+function getRandomNumber(int i) returns int {
+    return i + 2;
 }

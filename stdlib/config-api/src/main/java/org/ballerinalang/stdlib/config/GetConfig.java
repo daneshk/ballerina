@@ -20,12 +20,15 @@ package org.ballerinalang.stdlib.config;
 
 import org.ballerinalang.config.ConfigRegistry;
 import org.ballerinalang.jvm.BallerinaErrors;
+import org.ballerinalang.jvm.StringUtils;
 import org.ballerinalang.jvm.types.BArrayType;
 import org.ballerinalang.jvm.types.BMapType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.MapValueImpl;
+import org.ballerinalang.jvm.values.MappingInitialValueEntry;
 import org.ballerinalang.jvm.values.api.BArray;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.jvm.values.api.BValueCreator;
 
 import java.util.List;
@@ -38,40 +41,44 @@ import java.util.Map;
  */
 public class GetConfig {
     private static final ConfigRegistry configRegistry = ConfigRegistry.getInstance();
-    private static final String LOOKUP_ERROR_REASON = "{ballerina/config}LookupError";
-    private static final BMapType mapType = new BMapType(BTypes.typeAnydata);
-    private static final BArrayType arrayType = new BArrayType(BTypes.typeAnydata);
+    private static final BMapType mapType = new BMapType(BTypes.typeAnydata, true);
+    private static final BArrayType arrayType = new BArrayType(BTypes.typeAnydata, -1, true);
 
-    public static Object get(String configKey, String type) {
+    public static Object get(BString configKey, BString type) {
         try {
-            switch (type) {
+            switch (type.getValue()) {
                 case "STRING":
-                    return configRegistry.getAsString(configKey);
+                    return StringUtils.fromString(configRegistry.getAsString(configKey.getValue()));
                 case "INT":
-                    return configRegistry.getAsInt(configKey);
+                    return configRegistry.getAsInt(configKey.getValue());
                 case "FLOAT":
-                    return configRegistry.getAsFloat(configKey);
+                    return configRegistry.getAsFloat(configKey.getValue());
                 case "BOOLEAN":
-                    return configRegistry.getAsBoolean(configKey);
+                    return configRegistry.getAsBoolean(configKey.getValue());
                 case "MAP":
-                    return buildMapValue(configRegistry.getAsMap(configKey));
+                    return buildMapValue(configRegistry.getAsMap(configKey.getValue()));
                 case "ARRAY":
-                    return buildArrayValue(configRegistry.getAsArray(configKey));
+                    return buildArrayValue(configRegistry.getAsArray(configKey.getValue()));
                 default:
                     throw new IllegalStateException("invalid value type: " + type);
             }
         } catch (IllegalArgumentException e) {
-            throw BallerinaErrors.createError(LOOKUP_ERROR_REASON, e.getMessage());
+            throw BallerinaErrors.createError(StringUtils.fromString(
+                    "error occurred while trying to retrieve the value; " + e.getMessage()));
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static MapValue buildMapValue(Map<String, Object> section) {
-        MapValue map = new MapValueImpl<String, Object>(mapType);
+    private static MapValue<BString, Object> buildMapValue(Map<String, Object> section) {
+        MappingInitialValueEntry.KeyValueEntry[] keyValues = new MappingInitialValueEntry.KeyValueEntry[section.size()];
+        int i = 0;
         for (Map.Entry<String, Object> entry : section.entrySet()) {
-            map.put(entry.getKey(), getConvertedValue(entry.getValue()));
+            MappingInitialValueEntry.KeyValueEntry keyValue = new MappingInitialValueEntry.KeyValueEntry(
+                    StringUtils.fromString(entry.getKey()), getConvertedValue(entry.getValue()));
+            keyValues[i] = keyValue;
+            i++;
         }
-        return map;
+        return new MapValueImpl<>(mapType, keyValues);
     }
 
     private static BArray buildArrayValue(List value) {
@@ -84,13 +91,13 @@ public class GetConfig {
 
     @SuppressWarnings("unchecked")
     private static Object getConvertedValue(Object obj) {
-        if (obj instanceof String || obj instanceof Long || obj instanceof Double || obj instanceof Boolean) {
+        if (obj instanceof Long || obj instanceof Double || obj instanceof Boolean) {
             return obj;
         } else if (obj instanceof Map) {
             return buildMapValue((Map<String, Object>) obj);
         } else if (obj instanceof List) {
             return buildArrayValue((List) obj);
         }
-        return String.valueOf(obj);
+        return StringUtils.fromString(String.valueOf(obj));
     }
 }

@@ -39,6 +39,7 @@ import com.intellij.xdebugger.frame.XValueModifier;
 import com.intellij.xdebugger.frame.XValueNode;
 import com.intellij.xdebugger.frame.XValuePlace;
 import com.intellij.xdebugger.frame.presentation.XRegularValuePresentation;
+import com.intellij.xdebugger.frame.presentation.XStringValuePresentation;
 import com.intellij.xdebugger.frame.presentation.XValuePresentation;
 import io.ballerina.plugins.idea.highlighting.syntax.BallerinaSyntaxHighlightingColors;
 import org.eclipse.lsp4j.debug.Variable;
@@ -62,7 +63,7 @@ public class BallerinaXValue extends XNamedValue {
     @Nullable
     private final Icon icon;
 
-    BallerinaXValue(@NotNull BallerinaDebugProcess process, @NotNull Variable variable, @Nullable Icon icon) {
+    public BallerinaXValue(@NotNull BallerinaDebugProcess process, @NotNull Variable variable, @Nullable Icon icon) {
         super(variable.getName());
         this.process = process;
         this.variable = variable;
@@ -84,13 +85,11 @@ public class BallerinaXValue extends XNamedValue {
         try {
             XValueChildrenList list = new XValueChildrenList();
             // Sends a variable request to get the child variables.
-            VariablesArguments variablesArgs = new VariablesArguments();
-            variablesArgs.setVariablesReference(variable.getVariablesReference());
-
-            VariablesResponse variableResp = process.getDapClientConnector().getRequestManager()
-                    .variables(variablesArgs);
+            VariablesArguments varArgs = new VariablesArguments();
+            varArgs.setVariablesReference(variable.getVariablesReference());
+            VariablesResponse variableResp = process.getDapClientConnector().getRequestManager().variables(varArgs);
             for (Variable variable : variableResp.getVariables()) {
-                list.add(variable.getName(), new BallerinaXValue(process, variable, AllIcons.Nodes.Field));
+                list.add(variable.getName(), new BallerinaXValue(process, variable, getIconFor(variable)));
             }
             node.addChildren(list, true);
         } catch (Exception e) {
@@ -109,37 +108,60 @@ public class BallerinaXValue extends XNamedValue {
         String value = variable.getValue() != null ? variable.getValue() : "";
         String type = variable.getType() != null ? variable.getType() : "";
 
-        if (type.equalsIgnoreCase(BallerinaXValueType.STRING.getValue())) {
+        if (type.equalsIgnoreCase(BallerinaValueType.STRING.getValue())) {
+            // Trims leading and trailing double quotes, if presents.
+            value = value.replaceAll("^\"+|\"+$", "");
+            return new XStringValuePresentation(value);
+        } else if (type.equalsIgnoreCase(BallerinaValueType.INT.getValue())
+                || type.equalsIgnoreCase(BallerinaValueType.FLOAT.getValue())
+                || type.equalsIgnoreCase(BallerinaValueType.DECIMAL.getValue())) {
+            String finalValue = value;
+            return new XRegularValuePresentation(finalValue, type) {
+                @Override
+                public void renderValue(@NotNull XValueTextRenderer renderer) {
+                    renderer.renderValue(finalValue, BallerinaSyntaxHighlightingColors.NUMBER);
+                }
+            };
+        } else if (type.equalsIgnoreCase(BallerinaValueType.BOOLEAN.getValue())
+                || type.equalsIgnoreCase(BallerinaValueType.TYPE_DESC.getValue())) {
+            String finalValue = value;
             return new XValuePresentation() {
                 @Override
                 public void renderValue(@NotNull XValueTextRenderer renderer) {
-                    renderer.renderValue(value, BallerinaSyntaxHighlightingColors.STRING);
+                    renderer.renderValue(finalValue, BallerinaSyntaxHighlightingColors.KEYWORD);
                 }
             };
-        }
-
-        if (type.equalsIgnoreCase(BallerinaXValueType.INT.getValue())
-                || type.equalsIgnoreCase(BallerinaXValueType.FLOAT.getValue())
-                || type.equalsIgnoreCase(BallerinaXValueType.DECIMAL.getValue())
-                || type.equalsIgnoreCase(BallerinaXValueType.LONG.getValue())) {
-            return new XRegularValuePresentation(value, type) {
-                @Override
-                public void renderValue(@NotNull XValueTextRenderer renderer) {
-                    renderer.renderValue(value, BallerinaSyntaxHighlightingColors.NUMBER);
-                }
-            };
-        }
-
-        if (type.equalsIgnoreCase(BallerinaXValueType.BOOLEAN.getValue())) {
+        } else if (type.equalsIgnoreCase(BallerinaValueType.XML.getValue())) {
+            String finalValue = value;
             return new XValuePresentation() {
+                @Nullable
+                @Override
+                public String getType() {
+                    return type;
+                }
+
                 @Override
                 public void renderValue(@NotNull XValueTextRenderer renderer) {
-                    renderer.renderValue(value, BallerinaSyntaxHighlightingColors.KEYWORD);
+                    renderer.renderValue(finalValue, BallerinaSyntaxHighlightingColors.STRING);
                 }
             };
-        }
+        } else if (type.equalsIgnoreCase(BallerinaValueType.ERROR.getValue())) {
+            String finalValue = value;
+            return new XValuePresentation() {
+                @Nullable
+                @Override
+                public String getType() {
+                    return type;
+                }
 
-        return new XRegularValuePresentation(value, type);
+                @Override
+                public void renderValue(@NotNull XValueTextRenderer renderer) {
+                    renderer.renderError(finalValue);
+                }
+            };
+        } else {
+            return new XRegularValuePresentation(value, type);
+        }
     }
 
     @Nullable
@@ -175,7 +197,7 @@ public class BallerinaXValue extends XNamedValue {
                 if (editor == null || position == null) {
                     return null;
                 }
-                String name = myName.startsWith("&") ? myName.replaceFirst("\\&", "") : myName;
+                String name = myName.startsWith("&") ? myName.replaceFirst("&", "") : myName;
                 PsiElement resolved = findTargetElement(project, position, editor, name);
                 if (resolved == null) {
                     return null;
@@ -214,23 +236,22 @@ public class BallerinaXValue extends XNamedValue {
         // Todo
     }
 
-    // Todo - Add the rest of the bal types
-    private enum BallerinaXValueType {
-        STRING("String"),
-        BOOLEAN("Boolean"),
-        INT("Int"),
-        FLOAT("Float"),
-        LONG("Long"),
-        DECIMAL("Decimal");
-
-        private String value;
-
-        BallerinaXValueType(String value) {
-            this.value = value;
-        }
-
-        public String getValue() {
-            return value;
+    public static Icon getIconFor(@NotNull Variable variable) {
+        String variableType = variable.getType();
+        if (BallerinaValueType.ARRAY.getValue().equals(variableType)
+                || BallerinaValueType.TUPLE.getValue().equals(variableType)) {
+            return AllIcons.Debugger.Db_array;
+        } else if (BallerinaValueType.OBJECT.getValue().equals(variableType)
+                || BallerinaValueType.RECORD.getValue().equals(variableType)
+                || BallerinaValueType.MAP.getValue().equals(variableType)
+                || BallerinaValueType.JSON.getValue().equals(variableType)) {
+            return AllIcons.Debugger.Db_db_object;
+        } else if (variableType.equals(BallerinaValueType.XML.getValue())) {
+            return AllIcons.FileTypes.Xml;
+        } else if (variableType.equals(BallerinaValueType.ERROR.getValue())) {
+            return AllIcons.Nodes.ExceptionClass;
+        } else {
+            return AllIcons.Nodes.Variable;
         }
     }
 }

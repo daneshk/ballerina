@@ -31,7 +31,7 @@ public class LdapConstants {
 
     // Name of the Ballerina ldap module, used to create struct instances.
     public static final String LDAP_PACKAGE = "ballerina/ldap";
-    public static final BPackage LDAP_PACKAGE_ID = new BPackage(BALLERINA_BUILTIN_PKG_PREFIX, "ldap");
+    public static final BPackage LDAP_PACKAGE_ID = new BPackage(BALLERINA_BUILTIN_PKG_PREFIX, "ldap", "1.0.0");
 
     // Record used to reference to a LDAP connection.
     public static final String LDAP_CONNECTION = "LdapConnection";
@@ -68,7 +68,7 @@ public class LdapConstants {
     public static final String LDAP_CONNECTION_SOURCE = "connectionSource";
     public static final String LDAP_CONNECTION_CONTEXT = "connectionContext";
     public static final String ENDPOINT_INSTANCE_ID = "instanceId";
-    public static final String SECURE_AUTH_STORE_CONFIG = "secureClientSocket";
+    public static final String SECURE_AUTH_STORE_CONFIG = "secureSocket";
 
     public static final String AUTH_STORE_CONFIG_TRUST_STORE = "trustStore";
     public static final String FILE_PATH = "path";
@@ -80,5 +80,5 @@ public class LdapConstants {
     public static final String X_509 = "X.509";
     public static final String CERTIFICATE_ALIAS = "ca";
 
-    public static final String LDAP_ERROR_CODE = "{ballerina/ldap}Error";
+    public static final String LDAP_ERROR_TYPE = "LdapError";
 }

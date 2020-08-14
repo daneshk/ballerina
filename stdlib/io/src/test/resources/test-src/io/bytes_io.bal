@@ -19,17 +19,17 @@ import ballerina/io;
 io:ReadableByteChannel? rch = ();
 io:WritableByteChannel? wch = ();
 
-function initReadableChannel(string filePath) returns @tainted io:Error? {
+function initReadableChannel(string filePath) returns io:Error? {
     var result = io:openReadableFile(filePath);
     if (result is io:ReadableByteChannel) {
-        rch = <@untainted> result;
+        rch = result;
     } else {
         return result;
     }
 }
 
 function initWritableChannel(string filePath) {
-    wch = <@untainted io:WritableByteChannel> io:openWritableFile(filePath);
+    wch = <io:WritableByteChannel> io:openWritableFile(filePath);
 }
 
 function readBytes(int numberOfBytes) returns @tainted byte[]|io:Error {
@@ -37,7 +37,7 @@ function readBytes(int numberOfBytes) returns @tainted byte[]|io:Error {
     if (rChannel is io:ReadableByteChannel) {
         return rChannel.read(numberOfBytes);
     } else {
-        io:GenericError e = error(io:GENERIC_ERROR, message = "ReadableByteChannel not initialized");
+        io:GenericError e = io:GenericError("ReadableByteChannel not initialized");
         return e;
     }
 }
@@ -53,7 +53,7 @@ function writeBytes(byte[] content, int startOffset) returns int|io:Error {
             return result;
         }
     } else {
-       io:GenericError e = error(io:GENERIC_ERROR, message = "WritableByteChannel not initialized");
+       io:GenericError e = io:GenericError("WritableByteChannel not initialized");
        return e;
     }
 }

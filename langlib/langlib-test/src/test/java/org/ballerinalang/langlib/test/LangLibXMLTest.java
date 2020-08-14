@@ -24,6 +24,7 @@ import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BXML;
+import org.ballerinalang.model.values.BXMLSequence;
 import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
@@ -51,7 +52,6 @@ public class LangLibXMLTest {
         compileResult = BCompileUtil.compile("test-src/xmllib_test.bal");
         constrainedTest = BCompileUtil.compile("test-src/xmllib_constrained_test.bal");
         negativeResult = BCompileUtil.compile("test-src/xmllib_test_negative.bal");
-        constraintNegative = BCompileUtil.compile("test-src/xmllib_constrained_negative_test.bal");
     }
 
     @Test(dataProvider = "XMLDataProvider")
@@ -206,7 +206,7 @@ public class LangLibXMLTest {
         BValue[] returns = BRunUtil.invoke(compileResult, "testXMLCycleError");
         assertEquals(returns[0].stringValue(),
                 "{ballerina/lang.xml}XMLOperationError " +
-                        "{message:\"Failed to set children to xml element: Cycle detected\"}");
+                        "{\"message\":\"Failed to set children to xml element: Cycle detected\"}");
         assertTrue(returns[1].stringValue().contains("<CD><CD>"));
         assertTrue(returns[1].stringValue().contains("</CD></CD>"));
     }
@@ -216,7 +216,7 @@ public class LangLibXMLTest {
         BValue[] returns = BRunUtil.invoke(compileResult, "testXMLCycleDueToChildrenOfChildren");
         assertEquals(returns[0].stringValue(),
                 "{ballerina/lang.xml}XMLOperationError " +
-                        "{message:\"Failed to set children to xml element: Cycle detected\"}");
+                        "{\"message\":\"Failed to set children to xml element: Cycle detected\"}");
     }
 
     @Test
@@ -230,7 +230,53 @@ public class LangLibXMLTest {
     }
 
     @Test
+    public void testAsyncFpArgsWithXmls() {
+        BValue[] results = BRunUtil.invoke(compileResult, "testAsyncFpArgsWithXmls");
+        assertTrue(results[0] instanceof BInteger);
+        assertTrue(results[1] instanceof BXMLSequence);
+        assertEquals(((BInteger) results[0]).intValue(), 6021);
+        BXMLSequence bxmlSequence = (BXMLSequence) results[1];
+        assertEquals(bxmlSequence.getItem(0).children().getItem(1).getTextValue().stringValue(), "Harry Potter");
+        assertEquals(bxmlSequence.getItem(1).children().getItem(1).getTextValue().stringValue(), "Learning XML");
+    }
+
+    public void testChildren() {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testChildren");
+    }
+
+    @Test
+    public void testElements() {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testElements");
+    }
+
+    @Test
+    public void testElementsNS()  {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testElementsNS");
+    }
+
+    @Test
+    public void testElementChildren() {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testElementChildren");
+    }
+
+    @Test
+    public void testElementChildrenNS()  {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testElementChildrenNS");
+    }
+
+    @Test
+    public void testXMLFunctionalCtor() {
+        BRunUtil.invoke(compileResult, "testXMLFunctionalCtor");
+        BRunUtil.invoke(compileResult, "testXMLFunctionalConstructorWithAttributes");
+        BRunUtil.invoke(compileResult, "testXMLFunctionalConstructorWithAChild");
+        BRunUtil.invoke(compileResult, "testXMLCommentCtor");
+        BRunUtil.invoke(compileResult, "testXMLPICtor");
+        BRunUtil.invoke(compileResult, "testXMLTextCtor");
+    }
+
+    @Test
     public void testNegativeCases() {
+        negativeResult = BCompileUtil.compile("test-src/xmllib_test_negative.bal");
         int i = 0;
         validateError(negativeResult, i++, "incompatible types: expected 'xml:Element', found 'xml'", 21, 12);
         validateError(negativeResult, i++, "incompatible types: expected 'xml:Element', found 'xml'", 28, 5);
@@ -287,6 +333,7 @@ public class LangLibXMLTest {
 
     @Test
     public void testNegativeConstraint() {
+        constraintNegative = BCompileUtil.compile("test-src/xmllib_constrained_negative_test.bal");
         int i = 0;
         validateError(constraintNegative, i++, "incompatible types: expected 'xml:Comment', found 'xml:Element'",
                 20, 28);

@@ -92,9 +92,7 @@ public class ConnectorInitTest {
         BValue[] returnVal = BRunUtil.invokeFunction(result, "testConnectionWithDatasourceInvalidProperty", args);
         Assert.assertTrue(returnVal[0] instanceof BError);
         BError error = (BError) returnVal[0];
-        Assert.assertEquals(error.getReason(), SQLDBUtils.SQL_APPLICATION_ERROR_REASON);
-        Assert.assertTrue(((BMap) ((BError) returnVal[0]).getDetails()).get(SQLDBUtils.SQL_ERROR_MESSAGE)
-                .stringValue().contains("Property invalidProperty does not exist on target class"));
+        Assert.assertTrue(error.getMessage().contains("Property invalidProperty does not exist on target class"));
     }
 
     @Test
@@ -103,9 +101,10 @@ public class ConnectorInitTest {
         Assert.assertFalse(returnVal[0] instanceof BError);
         Assert.assertTrue(returnVal[0] instanceof BMap);
         BMap connectionPool = (BMap) returnVal[0];
-        Assert.assertEquals(connectionPool.get(Constants.ConnectionPool.MAX_CONNECTION_LIFE_TIME_SECONDS).stringValue()
-                , "1800");
-        Assert.assertEquals(connectionPool.get(Constants.ConnectionPool.MAX_OPEN_CONNECTIONS).stringValue(), "25");
+        Assert.assertEquals(connectionPool.get(
+                Constants.ConnectionPool.MAX_CONNECTION_LIFE_TIME_SECONDS.getValue()).stringValue(), "1800");
+        Assert.assertEquals(connectionPool.get(
+                Constants.ConnectionPool.MAX_OPEN_CONNECTIONS.getValue()).stringValue(), "25");
     }
 
     @Test

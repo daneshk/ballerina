@@ -159,7 +159,7 @@ public class WebSocketCompilationTest {
 
         assertExpectedDiagnosticsLength(compileResult, 1);
         BAssertUtil.validateError(compileResult, 0,
-                "An upgradeService need to be specified for the WebSocket upgrade resource", 24, 5);
+                "An upgradeService need to be specified for the WebSocket upgrade resource", 29, 5);
     }
 
     @Test(description = "Resource returns can only be error or nil")
@@ -192,7 +192,7 @@ public class WebSocketCompilationTest {
                 "fail_onBinary_failoverClient.bal");
         assertExpectedDiagnosticsLength(compileResult, 2);
         Assert.assertTrue(compileResult.toString().contains("Invalid resource signature for onBinary resource " +
-                "in service : The first parameter should be a WebSocketFailoverClient"));
+                "in service : The first parameter should be a ballerina/http:1.0.0:WebSocketFailoverClient"));
     }
 
     private void assertExpectedDiagnosticsLength(CompileResult compileResult, int expectedLength) {

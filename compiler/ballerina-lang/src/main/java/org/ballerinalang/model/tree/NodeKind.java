@@ -44,8 +44,6 @@ public enum NodeKind {
     RESOURCE,
     SERVICE,
     TYPE_DEFINITION,
-    TABLE,
-    TABLE_COLUMN,
     VARIABLE,
     LET_VARIABLE,
     TUPLE_VARIABLE,
@@ -55,6 +53,10 @@ public enum NodeKind {
     XMLNS,
     CHANNEL,
     WAIT_LITERAL_KEY_VALUE,
+    TABLE_KEY_SPECIFIER,
+    TABLE_KEY_TYPE_CONSTRAINT,
+    TABLE_MULTI_KEY,
+    RETRY_SPEC,
 
     /* Expressions */
     DOCUMENTATION_ATTRIBUTE,
@@ -82,6 +84,7 @@ public enum NodeKind {
     RECORD_VARIABLE_REF,
     ERROR_VARIABLE_REF,
     STRING_TEMPLATE_LITERAL,
+    RAW_TEMPLATE_LITERAL,
     TERNARY_EXPR,
     WAIT_EXPR,
     TRAP_EXPR,
@@ -109,6 +112,7 @@ public enum NodeKind {
     MATCH_EXPRESSION_PATTERN_CLAUSE,
     CHECK_EXPR,
     CHECK_PANIC_EXPR,
+    FAIL,
     ERROR_CONSTRUCTOR,
     TYPE_TEST_EXPR,
     IS_LIKE,
@@ -120,11 +124,14 @@ public enum NodeKind {
     DOCUMENTATION_DEPRECATED_PARAMETERS,
     SERVICE_CONSTRUCTOR,
     LET_EXPR,
+    TABLE_CONSTRUCTOR_EXPR,
+    TRANSACTIONAL_EXPRESSION,
 
     /* Statements */
     ABORT,
     DONE,
     RETRY,
+    RETRY_TRANSACTION,
     ASSIGNMENT,
     COMPOUND_ASSIGNMENT,
     POST_INCREMENT,
@@ -162,17 +169,26 @@ public enum NodeKind {
     CHANNEL_RECEIVE,
     CHANNEL_SEND,
     DO_ACTION,
+    COMMIT,
+    ROLLBACK,
 
     /* Clauses */
     SELECT,
     FROM,
+    JOIN,
     WHERE,
     DO,
     LET_CLAUSE,
+    ON_CONFLICT,
+    ON,
+    LIMIT,
+    ORDER_BY,
+    ORDER_KEY,
 
     /* Types */
     ARRAY_TYPE,
     UNION_TYPE_NODE,
+    INTERSECTION_TYPE_NODE,
     FINITE_TYPE_NODE,
     TUPLE_TYPE_NODE,
     BUILT_IN_REF_TYPE,
@@ -184,5 +200,6 @@ public enum NodeKind {
     OBJECT_TYPE,
     ERROR_TYPE,
     STREAM_TYPE,
+    TABLE_TYPE
 
 }

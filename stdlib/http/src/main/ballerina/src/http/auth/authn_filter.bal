@@ -26,7 +26,7 @@ public type AuthnFilter object {
     # Initializes the `AuthnFilter` object.
     #
     # + authHandlers - An array of authentication handlers or an array consisting of arrays of authentication handlers
-    public function __init(InboundAuthHandlers authHandlers) {
+    public function init(InboundAuthHandlers authHandlers) {
         self.authHandlers = authHandlers;
     }
 
@@ -34,7 +34,7 @@ public type AuthnFilter object {
     #
     # + caller - Caller for outbound HTTP responses
     # + request - An inbound HTTP request message
-    # + context - `FilterContext` instance
+    # + context - The `http:FilterContext` instance
     # + return - A flag to indicate if the request flow should be continued(true) or aborted(false)
     public function filterRequest(Caller caller, Request request, FilterContext context) returns boolean {
         boolean|AuthenticationError authenticated = true;
@@ -46,7 +46,11 @@ public type AuthnFilter object {
                 authenticated = handleAuthRequest(self.authHandlers, request);
             }
         }
-        return isAuthnSuccessful(caller, authenticated);
+        if (authenticated is boolean && authenticated) {
+            return true;
+        }
+        send401(caller, context);
+        return false;
     }
 };
 
@@ -92,21 +96,19 @@ function checkForAuthHandlers(InboundAuthHandler[] authHandlers, Request request
     return false;
 }
 
-# Verifies if the authentication is successful. If not responds to the user.
-#
-# + caller - Caller for outbound HTTP response
-# + authenticated - Authentication status for the request, or `AuthenticationError` if error occurred
-# + return - Authentication result to indicate if the filter can proceed(true) or not(false)
-function isAuthnSuccessful(Caller caller, boolean|AuthenticationError authenticated) returns boolean {
-    Response response = new;
-    response.statusCode = 401;
-    if (authenticated is boolean && authenticated) {
-        return authenticated;
+function send401(Caller caller, FilterContext context) {
+    if (isWebSocketUpgradeRequest(context)) {
+        error? err = caller->cancelWebSocketUpgrade(401, "Authentication failure.");
+        if (err is error) {
+            panic <error> err;
+        }
+    } else {
+        Response response = new;
+        response.statusCode = 401;
+        response.setTextPayload("Authentication failure.");
+        error? err = caller->respond(response);
+        if (err is error) {
+            panic <error> err;
+        }
     }
-    response.setTextPayload("Authentication failure.");
-    error? err = caller->respond(response);
-    if (err is error) {
-        panic <error> err;
-    }
-    return false;
 }

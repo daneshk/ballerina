@@ -26,6 +26,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.ballerinalang.jvm.JSONParser;
 import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.MapValueImpl;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.model.util.JsonParser;
 import org.ballerinalang.model.util.StringUtils;
 import org.ballerinalang.model.values.BMap;
@@ -211,7 +212,9 @@ public class ServiceTest {
         Object bJson = JSONParser.parse(new HttpMessageDataStreamer(responseMsg).getInputStream());
         Assert.assertTrue(bJson instanceof MapValue);
 
-        Assert.assertTrue(((MapValueImpl) bJson).get("Team").toString().isEmpty(), "Team variable not set properly");
+        Assert.assertTrue(((MapValueImpl<BString, BString>) bJson).get(
+                org.ballerinalang.jvm.StringUtils.fromString("Team")).toString().isEmpty(),
+                          "Team variable not set properly");
     }
 
     @Test(description = "Test GetFormParams empty responseMsgPayloads")
@@ -289,8 +292,9 @@ public class ServiceTest {
 
     //TODO: add more test cases
 
+    //TODO Transaction
     /* Negative cases */
-    @Test(description = "verify code analyzer errors in services.")
+    @Test(description = "verify code analyzer errors in services.", enabled = false)
     public void testCheckCodeAnalyzerErrors() {
         BAssertUtil.validateError(negativeResult, 0, "break cannot be used outside of a loop", 10, 9);
         BAssertUtil.validateError(negativeResult, 1, "continue cannot be used outside of a loop", 16, 9);

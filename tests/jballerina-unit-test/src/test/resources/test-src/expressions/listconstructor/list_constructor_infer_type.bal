@@ -22,7 +22,7 @@ type Foo record {
 type Bar object {
     int i;
 
-    public function __init(int i) {
+    public function init(int i) {
         self.i = i;
     }
 };
@@ -48,6 +48,101 @@ function inferNestedTuple() {
     var x = [1, 2.0d, [3, f, [b, b]], arr, j];
     typedesc<any> ta = typeof x;
     assertEquality("typedesc [int,decimal,[int,Foo,[Bar,Bar]],int[2],json]", ta.toString());
+}
+
+function testInferSameRecordsInTuple() {
+    var arr = [
+        {id: 123, name: "Anne", city: "Colombo"},
+        {id: 456, name: "Jo", city: "Colombo"}
+    ];
+
+    record {|int id; string name; string city;|} rec1 = arr[0];
+    assertEquality(123, rec1.id);
+    assertEquality("Anne", rec1.name);
+    assertEquality("Colombo", rec1.city);
+
+    record {|int id; string name; string city;|} rec2 = arr[1];
+    assertEquality(456, rec2.id);
+    assertEquality("Jo", rec2.name);
+    assertEquality("Colombo", rec2.city);
+}
+
+function testInferDifferentRecordsInTuple() {
+    var arr = [
+        {id: 123, name: "Anne", city: "Colombo"},
+        {id: 456, name: "Jo", age: 40}
+    ];
+
+    record {|int id; string name; string city;|} rec1 = arr[0];
+    assertEquality(123, rec1.id);
+    assertEquality("Anne", rec1.name);
+    assertEquality("Colombo", rec1.city);
+
+    record {|int id; string name; int age;|} rec2 = arr[1];
+    assertEquality(456, rec2.id);
+    assertEquality("Jo", rec2.name);
+    assertEquality(40, rec2.age);
+}
+
+function testInferringForReadOnly() {
+    string str = "hello";
+    boolean b = true;
+
+    readonly rd1 =[1, str];
+
+    assertEquality(true, rd1 is [int, string] & readonly);
+    [int, string] arr1 = <[int, string] & readonly> rd1;
+
+    var fn = function() {
+        arr1[0] = 12;
+    };
+    error? res = trap fn();
+    assertEquality(true, res is error);
+
+    error err = <error> res;
+    assertEquality("modification not allowed on readonly value", err.detail()["message"]);
+
+    Foo & readonly foo = {
+        s: "May",
+        i: 20
+    };
+    readonly rd2 = [1, [b, false], foo, foo];
+
+    assertEquality(true, rd2 is [int, [boolean, boolean], Foo, Foo & readonly] & readonly);
+    assertEquality(false, rd2 is [int, [boolean, boolean], abstract object {} & readonly, Foo & readonly] & readonly);
+    [int, [boolean, boolean], Foo, Foo] arr2 = <[int, [boolean, boolean], Foo, Foo] & readonly> rd2;
+
+    fn = function() {
+        arr2[0] = 2;
+    };
+    res = trap fn();
+    assertEquality(true, res is error);
+
+    err = <error> res;
+    assertEquality("modification not allowed on readonly value", err.detail()["message"]);
+}
+
+function testInferringForReadOnlyInUnion() {
+    Foo & readonly foo = {
+        s: "May",
+        i: 20
+    };
+    boolean b = true;
+
+    readonly|(Foo|int)[] rd = [1, [b, false], foo, foo];
+
+    assertEquality(true, rd is [int, [boolean, boolean], Foo, Foo & readonly] & readonly);
+    assertEquality(false, rd is [int, [boolean, boolean], abstract object {} & readonly, Foo & readonly] & readonly);
+    [int, [boolean, boolean], Foo, Foo] arr = <[int, [boolean, boolean], Foo, Foo] & readonly> rd;
+
+    var fn = function() {
+        arr[0] = 2;
+    };
+    error? res = trap fn();
+    assertEquality(true, res is error);
+
+    error err = <error> res;
+    assertEquality("modification not allowed on readonly value", err.detail()["message"]);
 }
 
 const ASSERTION_ERROR_REASON = "AssertionError";

@@ -26,7 +26,7 @@ type Type any|error;
 # Has the special semantic that when used in a declaration
 # all uses in the declaration must refer to same type.
 @typeParam
-type ErrorType error?;
+type ErrorType error|never;
 
 # A type parameter that is a subtype of `any|error`.
 # Has the special semantic that when used in a declaration
@@ -45,7 +45,7 @@ public function filter(stream<Type,ErrorType> stm, function(Type val) returns bo
         public stream<Type, ErrorType> strm;
         public any func;
 
-        public function __init(stream<Type, ErrorType> strm, function(Type val) returns boolean func) {
+        public function init(stream<Type, ErrorType> strm, function(Type val) returns boolean func) {
             self.strm = strm;
             self.func = func;
         }
@@ -104,7 +104,7 @@ public function 'map(stream<Type,ErrorType> stm, function(Type val) returns Type
        public stream<Type, ErrorType> strm;
        public any func;
 
-       public function __init(stream<Type, ErrorType> strm, function(Type val) returns Type1 func) {
+       public function init(stream<Type, ErrorType> strm, function(Type val) returns Type1 func) {
            self.strm = strm;
            self.func = func;
        }

@@ -17,14 +17,18 @@
  */
 package org.ballerinalang.langlib.xml;
 
+import org.ballerinalang.jvm.StringUtils;
 import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.jvm.util.exceptions.BLangExceptionHelper;
 import org.ballerinalang.jvm.util.exceptions.RuntimeErrors;
 import org.ballerinalang.jvm.values.XMLValue;
+import org.ballerinalang.jvm.values.api.BString;
 import org.ballerinalang.model.types.TypeKind;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
+
+import static org.ballerinalang.util.BLangCompilerConstants.XML_VERSION;
 
 /**
  * Returns the string giving the expanded name of provided xml element.
@@ -32,7 +36,7 @@ import org.ballerinalang.natives.annotations.ReturnType;
  * @since 1.0
  */
 @BallerinaFunction(
-        orgName = "ballerina", packageName = "lang.xml",
+        orgName = "ballerina", packageName = "lang.xml", version = XML_VERSION,
         functionName = "getName",
         args = {@Argument(name = "xmlValue", type = TypeKind.XML)},
         returnType = {@ReturnType(type = TypeKind.STRING)},
@@ -42,12 +46,12 @@ public class GetName {
 
     private static final String OPERATION = "get element name in xml";
 
-    public static String getName(Strand strand, XMLValue xmlVal) {
+    public static BString getName(Strand strand, XMLValue xmlVal) {
         if (!IsElement.isElement(strand, xmlVal)) {
             throw BLangExceptionHelper.getRuntimeException(RuntimeErrors.XML_FUNC_TYPE_ERROR, "getName", "element");
         }
         try {
-            return xmlVal.getElementName();
+            return StringUtils.fromString(xmlVal.getElementName());
         } catch (Throwable e) {
             BLangExceptionHelper.handleXMLException(OPERATION, e);
         }

@@ -30,6 +30,8 @@ public class BXMLType extends BType {
 
     private final int tag;
     public BType constraint;
+    private final boolean readonly;
+    private BIntersectionType immutableType;
 
     /**
      * Create a {@code BXMLType} which represents the boolean type.
@@ -41,17 +43,20 @@ public class BXMLType extends BType {
         super(typeName, pkg, XMLValue.class);
         this.constraint = constraint;
         this.tag = TypeTags.XML_TAG;
+        this.readonly = false;
     }
 
-    BXMLType(String typeName, BPackage pkg, int tag) {
+    public BXMLType(String typeName, BPackage pkg, int tag, boolean readonly) {
         super(typeName, pkg, XMLValue.class);
         this.tag = tag;
+        this.readonly = readonly;
     }
 
-    public BXMLType(BType constraint) {
+    public BXMLType(BType constraint, boolean readonly) {
         super(TypeConstants.XML_TNAME, null, XMLValue.class);
         this.tag = TypeTags.XML_TAG;
         this.constraint = constraint;
+        this.readonly = readonly;
     }
 
     @Override
@@ -85,7 +90,7 @@ public class BXMLType extends BType {
             return true;
         }
 
-        return constraint.equals(other.constraint);
+        return this.readonly == other.readonly && constraint.equals(other.constraint);
     }
 
     @Override
@@ -94,5 +99,20 @@ public class BXMLType extends BType {
             return TypeConstants.XML_TNAME + "<" + constraint + ">";
         }
         return super.toString();
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return this.readonly;
+    }
+
+    @Override
+    public BType getImmutableType() {
+        return this.immutableType;
+    }
+
+    @Override
+    public void setImmutableType(BIntersectionType immutableType) {
+        this.immutableType = immutableType;
     }
 }

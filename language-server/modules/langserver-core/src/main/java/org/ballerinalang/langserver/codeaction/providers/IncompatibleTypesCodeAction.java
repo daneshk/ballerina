@@ -15,6 +15,10 @@
  */
 package org.ballerinalang.langserver.codeaction.providers;
 
+import io.ballerinalang.compiler.syntax.tree.ModulePartNode;
+import io.ballerinalang.compiler.syntax.tree.SyntaxKind;
+import io.ballerinalang.compiler.syntax.tree.SyntaxTree;
+import io.ballerinalang.compiler.syntax.tree.Token;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.jvm.util.BLangConstants;
 import org.ballerinalang.langserver.common.CommonKeys;
@@ -31,17 +35,12 @@ import org.ballerinalang.model.elements.PackageID;
 import org.ballerinalang.model.tree.TopLevelNode;
 import org.ballerinalang.model.types.TypeKind;
 import org.eclipse.lsp4j.CodeAction;
-import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
-import org.eclipse.lsp4j.TextDocumentEdit;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentPositionParams;
 import org.eclipse.lsp4j.TextEdit;
-import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
-import org.eclipse.lsp4j.WorkspaceEdit;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.wso2.ballerinalang.compiler.tree.BLangBlockFunctionBody;
 import org.wso2.ballerinalang.compiler.tree.BLangCompilationUnit;
 import org.wso2.ballerinalang.compiler.tree.BLangFunction;
@@ -54,13 +53,13 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangReturn;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangStatement;
 import org.wso2.ballerinalang.compiler.tree.types.BLangObjectTypeNode;
+import org.wso2.ballerinalang.compiler.tree.types.BLangType;
 import org.wso2.ballerinalang.compiler.tree.types.BLangValueType;
 
 import java.io.File;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -124,7 +123,6 @@ public class IncompatibleTypesCodeAction extends AbstractCodeActionProvider {
         int line = position.getLine();
         int column = position.getCharacter();
         String uri = context.get(DocumentServiceKeys.FILE_URI_KEY);
-        List<Diagnostic> diagnostics = new ArrayList<>();
 
         Matcher matcher = CommandConstants.INCOMPATIBLE_TYPE_PATTERN.matcher(diagnosticMessage);
         if (matcher.find() && matcher.groupCount() > 1) {
@@ -147,7 +145,8 @@ public class IncompatibleTypesCodeAction extends AbstractCodeActionProvider {
                         Position end;
                         if (func.returnTypeNode instanceof BLangValueType
                                 && TypeKind.NIL.equals(((BLangValueType) func.returnTypeNode).getTypeKind())
-                                && func.returnTypeNode.getWS() == null) {
+                                && !hasReturnKeyword(func.returnTypeNode,
+                                                     documentManager.getTree(document.getPath()))) {
                             // eg. function test() {...}
                             start = new Position(func.returnTypeNode.pos.sLine - 1,
                                                  func.returnTypeNode.pos.eCol - 1);
@@ -163,21 +162,22 @@ public class IncompatibleTypesCodeAction extends AbstractCodeActionProvider {
 
                         // Add code action
                         String commandTitle = CommandConstants.CHANGE_RETURN_TYPE_TITLE + foundType + "'";
-                        CodeAction action = new CodeAction(commandTitle);
-                        action.setKind(CodeActionKind.QuickFix);
-                        action.setDiagnostics(diagnostics);
-                        action.setEdit(new WorkspaceEdit(Collections.singletonList(
-                                Either.forLeft(new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, null),
-                                                                    edits))))
-                        );
-                        return action;
+                        return createQuickFixCodeAction(commandTitle, edits, uri);
                     }
                 }
-            } catch (CompilationFailedException e) {
+            } catch (WorkspaceDocumentException | CompilationFailedException e) {
                 // ignore
             }
         }
         return null;
+    }
+
+    private static boolean hasReturnKeyword(BLangType returnTypeNode, SyntaxTree tree) {
+        if (tree.rootNode().kind() == SyntaxKind.MODULE_PART) {
+            Token token = ((ModulePartNode) tree.rootNode()).findToken(returnTypeNode.pos.sCol);
+            return token.kind() == SyntaxKind.RETURN_KEYWORD;
+        }
+        return false;
     }
 
     private static BLangFunction getFunctionNode(int line, int column, LSDocumentIdentifier document,

@@ -44,7 +44,7 @@ public type Request object {
     private boolean dirtyRequest;
     boolean noEntityBody;
 
-    public function __init() {
+    public function init() {
         self.dirtyRequest = false;
         self.noEntityBody = false;
         self.entity = self.createNewEntity();
@@ -74,8 +74,8 @@ public type Request object {
     # Gets the query param value associated with the given key.
     #
     # + key - Represents the query param key
-    # + return - Returns the query param value associated with the given key as a string. If multiple param values are
-    #            present, then the first value is returned. Nil is returned if no key is found.
+    # + return - The query param value associated with the given key as a string. If multiple param values are
+    #            present, then the first value is returned. `()` is returned if no key is found.
     public function getQueryParamValue(@untainted string key) returns @tainted string? {
         map<string[]> params = self.getQueryParams();
         var result = params[key];
@@ -85,7 +85,7 @@ public type Request object {
     # Gets all the query param values associated with the given key.
     #
     # + key - Represents the query param key
-    # + return - Returns all the query param values associated with the given key as a `string[]`. Nil is returned if no key
+    # + return - All the query param values associated with the given key as a `string[]`. `()` is returned if no key
     #            is found.
     public function getQueryParamValues(@untainted string key) returns @tainted string[]? {
         map<string[]> params = self.getQueryParams();
@@ -97,7 +97,7 @@ public type Request object {
     # + path - Path to the location of matrix parameters
     # + return - A map of matrix parameters which can be found for the given path
     public function getMatrixParams(string path) returns map<any> {
-        return externGetMatrixParams(self, java:fromString(path));
+        return externGetMatrixParams(self, path);
     }
 
     # Gets the `Entity` associated with the request.
@@ -143,7 +143,7 @@ public type Request object {
     }
 
     # Sets the specified header to the request. If a mapping already exists for the specified header key, the existing
-    # header value is replaced with the specified header value.
+    # header value is replaced with the specified header value. Panic if an illegal header is passed.
     #
     # + headerName - The header name
     # + headerValue - The header value
@@ -152,7 +152,7 @@ public type Request object {
         entity.setHeader(headerName, headerValue);
     }
 
-    # Adds the specified header to the request. Existing header values are not replaced.
+    # Adds the specified header to the request. Existing header values are not replaced. Panic if an illegal header is passed.
     #
     # + headerName - The header name
     # + headerValue - The header value
@@ -199,7 +199,7 @@ public type Request object {
         var result = entity.setContentType(contentType);
         if (result is mime:Error) {
             string message = "Error occurred while setting content type header of the request";
-            return getGenericClientError(message, result);
+            return GenericClientError(message, result);
         } else {
             return;
         }
@@ -207,7 +207,7 @@ public type Request object {
 
     # Gets the type of the payload of the request (i.e: the `content-type` header value).
     #
-    # + return - Returns the `content-type` header value as a string
+    # + return - The `content-type` header value as a string
     public function getContentType() returns @tainted string {
         mime:Entity entity = self.getEntityWithoutBody();
         return entity.getContentType();
@@ -223,11 +223,11 @@ public type Request object {
         } else {
             var payload = result.getJson();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the json payload from the request";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                }
             } else {
                 return payload;
@@ -245,11 +245,11 @@ public type Request object {
         } else {
             var payload = result.getXml();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the xml payload from the request";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                 }
             } else {
                 return payload;
@@ -267,11 +267,11 @@ public type Request object {
         } else {
             var payload = result.getText();
             if (payload is mime:Error) {
-                if (payload.detail()?.cause is mime:NoContentError) {
+                if (payload.cause() is mime:NoContentError) {
                     return createErrorForNoPayload(payload);
                 } else {
                     string message = "Error occurred while retrieving the text payload from the request";
-                    return getGenericClientError(message, payload);
+                    return GenericClientError(message, payload);
                 }
             } else {
                 return payload;
@@ -291,7 +291,7 @@ public type Request object {
             var payload = result.getByteChannel();
             if (payload is mime:Error) {
                 string message = "Error occurred while retrieving the byte channel from the request";
-                return getGenericClientError(message, payload);
+                return GenericClientError(message, payload);
             } else {
                 return payload;
             }
@@ -309,7 +309,7 @@ public type Request object {
             var payload = result.getByteArray();
             if (payload is mime:Error) {
                 string message = "Error occurred while retrieving the binary payload from the request";
-                return getGenericClientError(message, payload);
+                return GenericClientError(message, payload);
             } else {
                 return payload;
             }
@@ -327,27 +327,25 @@ public type Request object {
             string message = "Error occurred while retrieving form parameters from the request";
             if (!mimeEntity.hasHeader(mime:CONTENT_TYPE)) {
                 string errMessage = "Content-Type header is not available";
-                mime:HeaderUnavailableError typeError = error(mime:HEADER_UNAVAILABLE, message = errMessage);
-                return getGenericClientError(message, typeError);
+                mime:HeaderUnavailableError typeError = mime:HeaderUnavailableError(errMessage);
+                return GenericClientError(message, typeError);
             }
             string contentTypeHeaderValue = "";
             var mediaType = mime:getMediaType(mimeEntity.getHeader(mime:CONTENT_TYPE));
             if (mediaType is mime:InvalidContentTypeError) {
-                string errorMessage = <string> mediaType.detail()["message"];
-                mime:InvalidContentTypeError typeError = error(mime:INVALID_CONTENT_TYPE, message = errorMessage);
-                return getGenericClientError(message, typeError);
+                return GenericClientError(message, mediaType);
             } else {
                 contentTypeHeaderValue = mediaType.primaryType + "/" + mediaType.subType;
             }
             if (!(stringutils:equalsIgnoreCase(mime:APPLICATION_FORM_URLENCODED, contentTypeHeaderValue))) {
                 string errorMessage = "Invalid content type : expected 'application/x-www-form-urlencoded'";
-                mime:InvalidContentTypeError typeError = error(mime:INVALID_CONTENT_TYPE, message = errorMessage);
-                return getGenericClientError(message, typeError);
+                mime:InvalidContentTypeError typeError = mime:InvalidContentTypeError(errorMessage);
+                return GenericClientError(message, typeError);
             }
             var formData = mimeEntity.getText();
             map<string> parameters = {};
             if (formData is error) {
-                return getGenericClientError(message, formData);
+                return GenericClientError(message, formData);
             } else {
                 if (formData != "") {
                     string[] entries = stringutils:split(formData, "&");
@@ -375,7 +373,7 @@ public type Request object {
     # Extracts body parts from the request. If the content type is not a composite media type, an error
     # is returned.
 
-    # + return - Returns the body parts as an array of entities or an `http:ClientError` if there were any errors in
+    # + return - The body parts as an array of entities or else an `http:ClientError` if there were any errors
     #            constructing the body parts from the request
     public function getBodyParts() returns mime:Entity[]|ClientError {
         var result = self.getEntity();
@@ -385,7 +383,7 @@ public type Request object {
             var bodyParts = result.getBodyParts();
             if (bodyParts is mime:Error) {
                 string message = "Error occurred while retrieving body parts from the request";
-                return getGenericClientError(message, bodyParts);
+                return GenericClientError(message, bodyParts);
             } else {
                 return bodyParts;
             }
@@ -512,13 +510,13 @@ public type Request object {
             } else if (directive == ONLY_IF_CACHED) {
                 reqCC.onlyIfCached = true;
             } else if (directive.startsWith(MAX_AGE)) {
-                reqCC.maxAge = getExpirationDirectiveValue(directive);
+                reqCC.maxAge = getDirectiveValue(directive);
             } else if (directive == MAX_STALE) {
                 reqCC.maxStale = MAX_STALE_ANY_AGE;
             } else if (directive.startsWith(MAX_STALE)) {
-                reqCC.maxStale = getExpirationDirectiveValue(directive);
+                reqCC.maxStale = getDirectiveValue(directive);
             } else if (directive.startsWith(MIN_FRESH)) {
-                reqCC.minFresh = getExpirationDirectiveValue(directive);
+                reqCC.minFresh = getDirectiveValue(directive);
             }
             // non-standard directives are ignored
         }
@@ -528,7 +526,7 @@ public type Request object {
 
     # Check whether the entity body is present.
     #
-    # + return - a boolean indicating entity body availability
+    # + return - A boolean indicating the availability of the entity body
     function checkEntityBodyAvailability() returns boolean {
         return externCheckReqEntityBodyAvailability(self);
     }
@@ -588,7 +586,7 @@ function externGetQueryParams(Request request) returns map<string[]> =
     name: "getQueryParams"
 } external;
 
-function externGetMatrixParams(Request request, handle path) returns map<any> =
+function externGetMatrixParams(Request request, string path) returns map<any> =
 @java:Method {
     class: "org.ballerinalang.net.http.nativeimpl.ExternRequest",
     name: "getMatrixParams"

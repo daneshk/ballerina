@@ -16,7 +16,6 @@
 
 package io.ballerina.plugins.idea.debugger;
 
-import com.google.common.base.Strings;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import io.ballerina.plugins.idea.configuration.BallerinaProjectSettings;
@@ -59,10 +58,10 @@ public class BallerinaDAPClientConnector {
     private static final Logger LOG = Logger.getInstance(BallerinaDAPClientConnector.class);
 
     private BallerinaDebugProcess context;
-    private Project project;
-    private String entryFilePath;
-    private String host;
-    private int port;
+    private final Project project;
+    private final String entryFilePath;
+    private final String host;
+    private final int port;
     private DAPClient debugClient;
     private IDebugProtocolServer debugServer;
     private DAPRequestManager requestManager;
@@ -72,7 +71,7 @@ public class BallerinaDAPClientConnector {
     private Capabilities initializeResult;
     private ConnectionState myConnectionState;
 
-    private int debugAdapterPort;
+    private final int debugAdapterPort;
     private static final String CONFIG_SOURCE = "script";
     private static final String CONFIG_DEBUGEE_HOST = "debuggeeHost";
     private static final String CONFIG_DEBUGEE_PORT = "debuggeePort";
@@ -213,9 +212,8 @@ public class BallerinaDAPClientConnector {
         String os = OSUtils.getOperatingSystem();
         if (os != null) {
             String balSdkPath = BallerinaSdkUtils.getBallerinaSdkFor(project).getSdkPath();
-
             // Checks for the user-configured auto detection settings.
-            if (Strings.isNullOrEmpty(balSdkPath) &&
+            if (BallerinaSdkUtils.stringIsNullOrEmpty(balSdkPath) &&
                     BallerinaProjectSettings.getStoredSettings(project).isAutodetect()) {
                 try {
                     balSdkPath = BallerinaSdkUtils.autoDetectSdk(project);
@@ -225,7 +223,7 @@ public class BallerinaDAPClientConnector {
                     return null;
                 }
             }
-            if (Strings.isNullOrEmpty(balSdkPath)) {
+            if (BallerinaSdkUtils.stringIsNullOrEmpty(balSdkPath)) {
                 LOG.warn(String.format("couldn't find ballerina SDK for the project %s to start debug server.",
                         project.getName()));
                 return null;
@@ -245,7 +243,7 @@ public class BallerinaDAPClientConnector {
 
         List<String> processArgs = new ArrayList<>();
         processArgs.add(debugLauncherPath);
-        processArgs.add(String.valueOf(debugAdapterPort));
+        processArgs.add(Integer.toString(debugAdapterPort));
         return new BallerinaSocketStreamConnectionProvider(processArgs, project.getBasePath(), host, debugAdapterPort);
     }
 

@@ -197,7 +197,7 @@ public class SealedArrayTest {
         BAssertUtil.validateError(resultNegative, 0, "variable 'sealedArray1' is not initialized", 19, 5);
     }
 
-    @Test()
+    @Test(groups = { "brokenOnNewParser" })
     public void testNegativeAutoFillSealedArray() {
         BAssertUtil.validateError(listExprNegative, 0,
                                   "invalid usage of list constructor: type 'Person[5]' does not have a filler value",
@@ -253,7 +253,7 @@ public class SealedArrayTest {
         Assert.assertEquals(listExprNegative.getErrorCount(), 16);
     }
 
-    @Test()
+    @Test(groups = { "brokenOnNewParser" })
     public void testSemanticsNegativeSealedArrays() {
         Assert.assertEquals(semanticsNegative.getErrorCount(), 22);
         int i = 0;
@@ -353,8 +353,8 @@ public class SealedArrayTest {
     @Test(description = "Test accessing invalid index of sealed array matched union type",
             expectedExceptions = {BLangRuntimeException.class},
             expectedExceptionsMessageRegExp =
-                    "error: \\{ballerina/lang.array\\}IndexOutOfRange message=failed to set element to json: " +
-                            "message=array index out of range: index: 4, size: 3.*")
+                    "error: \\{ballerina/lang.array\\}IndexOutOfRange message=array index out of range: index: 4, " +
+                            "size: 3.*")
     public void accessInvalidIndexJSONArray() {
         BInteger bInteger = new BInteger(1);
         BInteger bInteger2 = new BInteger(4);
@@ -366,8 +366,7 @@ public class SealedArrayTest {
 
     @Test(description = "Test accessing invalid index of sealed array matched union type",
             expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp =
-                    ".*message=failed to set element to json: message=array index out of range: index: 3, size: 3.*")
+            expectedExceptionsMessageRegExp = ".*message=array index out of range: index: 3, size: 3.*")
     public void invalidIndexReferenceJSONArray() {
         BRunUtil.invoke(compileResult, "invalidIndexReferenceJSONArray");
     }

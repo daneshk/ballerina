@@ -38,7 +38,7 @@ public type Listener object {
     #
     # + return - An `error` if an error occurred during the listener starting process
     public function __start() returns error? {
-        return self.start();
+        return self.startEndpoint();
     }
 
     # Stops the service listener gracefully. Already-accepted requests will be served before connection closure.
@@ -56,7 +56,7 @@ public type Listener object {
         return err;
     }
 
-    # Attach a service to the listener.
+    # Attaches a service to the listener.
     #
     # + s - The service that needs to be attached
     # + name - Name of the service
@@ -66,10 +66,10 @@ public type Listener object {
     }
 
     # Detaches a Http or WebSocket service from the listener. Note that detaching a WebSocket service would not affect
-    # the functionality of the existing connections.
+    # The functionality of the existing connections.
     #
     # + s - The service to be detached
-    # + return - error if occurred during detaching of a service or `nil`
+    # + return - An `error` if one occurred during detaching of a service or else `()`
     public function __detach(service s) returns error? {
         return self.detach(s);
     }
@@ -77,25 +77,17 @@ public type Listener object {
     # Gets invoked during module initialization to initialize the listener.
     #
     # + port - Listening port of the HTTP service listener
-    # + c - Configurations for HTTP service listener
-    public function __init(int port, public ListenerConfiguration? config = ()) {
+    # + config - Configurations for the HTTP service listener
+    public function init(int port, public ListenerConfiguration? config = ()) {
         self.instanceId = system:uuid();
         self.config = config ?: {};
         self.port = port;
-        self.init(self.config);
-    }
-
-    # Gets invoked during module initialization to initialize the endpoint.
-    #
-    # + c - Configurations for HTTP service endpoints
-    public function init(ListenerConfiguration c) {
-        self.config = c;
         ListenerAuth? auth = self.config["auth"];
         if (auth is ListenerAuth) {
             if (auth.mandateSecureSocket) {
                 ListenerSecureSocket? secureSocket = self.config.secureSocket;
                 if (secureSocket is ()) {
-                    error err = error("Secure sockets have not been cofigured in order to enable auth providers.");
+                    error err = error("Secure sockets have not been configured in order to enable auth providers.");
                     panic err;
                 }
             }
@@ -107,7 +99,7 @@ public type Listener object {
             panic err;
         }
     }
-
+    
     public function initEndpoint() returns error? {
         return externInitEndpoint(self);
     }
@@ -124,7 +116,7 @@ public type Listener object {
     # Starts the registered service.
     #
     # + return - An `error` if an error occurred during the listener start process
-    function start() returns error? {
+    function startEndpoint() returns error? {
         return externStart(self);
     }
 
@@ -171,7 +163,7 @@ function externDetach(Listener listenerObj, service s) returns error? = @java:Me
 
 # Presents a read-only view of the remote address.
 #
-# + host - The remote host name/IP
+# + host - The remote host IP
 # + port - The remote port
 public type Remote record {|
     string host = "";
@@ -326,7 +318,7 @@ function addAuthFilters(ListenerConfiguration config) {
         AuthnFilter authnFilter = new(authHandlers);
 
         cache:Cache? positiveAuthzCache = auth.positiveAuthzCache ?: ();
-        cache:Cache? negativeAuthzCache = auth.positiveAuthzCache ?: ();
+        cache:Cache? negativeAuthzCache = auth.negativeAuthzCache ?: ();
         AuthzHandler authzHandler = new(positiveAuthzCache, negativeAuthzCache);
         Scopes? scopes = auth["scopes"];
         AuthzFilter authzFilter = new(authzHandler, scopes);
